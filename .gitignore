@@ -1,0 +1,13 @@
+# Logs e temporários
+*.log
+*.tmp
+*.bak
+
+# Pastas de trabalho de montagem de ISO / WIM
+ISO_Work/
+mount/
+cache/
+
+# Ambientes locais
+.vscode/
+.idea/
