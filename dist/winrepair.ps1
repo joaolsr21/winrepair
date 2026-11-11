@@ -1,5 +1,6 @@
 ﻿# ==============================================================================
 # WinRepair & Tweaks Pro (Standalone All-in-One)
+# Inspirado no utilitário de Chris Titus Tech (WinUtil)
 # Execução direta via: irm <URL> | iex
 # ==============================================================================
 
@@ -232,7 +233,7 @@ function Restart-NetworkAdapters {
 
 
 # ==============================================================================
-# Módulo Avançado: Otimizações de Desempenho, Debloat e Ajustes do Sistema
+# Módulo Avançado: Otimizações de Desempenho, Debloat, Serviços e Perfis Prontos
 # ==============================================================================
 
 function Clear-TempFiles {
@@ -296,42 +297,35 @@ function Clear-WindowsUpdateCache {
 function Enable-UltimatePerformancePowerPlan {
     Write-ToolLog "Desbloqueando e ativando o Plano de Energia 'Desempenho Máximo' (Ultimate Performance)..." "INFO"
     try {
-        # GUID do Ultimate Performance
         $guid = "e9a42b02-d5df-448d-aa00-03f14749eb61"
         $output = powercfg -duplicatescheme $guid 2>&1
         powercfg -setactive $guid
-        Write-ToolLog "Plano 'Desempenho Máximo' ativado para CPU e componentes com latência mínima." "SUCCESS"
+        Write-ToolLog "Plano 'Desempenho Máximo' ativado com sucesso." "SUCCESS"
     } catch {
-        Write-ToolLog "Falha ao ativar o plano de energia: $_" "ERROR"
+        Write-ToolLog "Falha ao ativar plano de energia: $_" "ERROR"
     }
 }
 
 function Optimize-WindowsTelemetryAndPrivacy {
-    Write-ToolLog "Desativando rastreamento de telemetria, diagnóstico e coleta de dados..." "INFO"
+    Write-ToolLog "Desativando telemetria, diagnóstico e coleta de dados..." "INFO"
     try {
-        # 1. Serviços de telemetria
-        $services = @("DiagTrack", "dmwappushservice", "diagnosticshub.standardcollector.service")
-        foreach ($s in $services) {
-            $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
-            if ($svc) {
-                Stop-Service -Name $s -Force -ErrorAction SilentlyContinue
-                Set-Service -Name $s -StartupType Disabled -ErrorAction SilentlyContinue
-                Write-ToolLog "Serviço $s desativado." "INFO"
-            }
-        }
-
-        # 2. Desativar Telemetria via Registro (Políticas de Grupo)
         $dataCollectionKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
         if (-not (Test-Path $dataCollectionKey)) { New-Item -Path $dataCollectionKey -Force | Out-Null }
         Set-ItemProperty -Path $dataCollectionKey -Name "AllowTelemetry" -Value 0 -Type DWord -Force
         Set-ItemProperty -Path $dataCollectionKey -Name "MaxTelemetryAllowed" -Value 0 -Type DWord -Force
 
-        # 3. Desativar ID de Anúncio e Sugestões do Windows
         $advertisingKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo"
         if (-not (Test-Path $advertisingKey)) { New-Item -Path $advertisingKey -Force | Out-Null }
         Set-ItemProperty -Path $advertisingKey -Name "DisabledByGroupPolicy" -Value 1 -Type DWord -Force
 
-        # 4. Desativar Tarefas Agendadas de Coleta / CEIP (Customer Experience Improvement)
+        # Desativar Histórico de Atividades
+        $activityKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
+        if (-not (Test-Path $activityKey)) { New-Item -Path $activityKey -Force | Out-Null }
+        Set-ItemProperty -Path $activityKey -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
+        Set-ItemProperty -Path $activityKey -Name "PublishUserActivities" -Value 0 -Type DWord -Force
+        Set-ItemProperty -Path $activityKey -Name "UploadUserActivities" -Value 0 -Type DWord -Force
+
+        # Desativar Tarefas Agendadas de Telemetria / CEIP
         $telemetryTasks = @(
             "\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
             "\Microsoft\Windows\Application Experience\ProgramDataUpdater",
@@ -343,10 +337,54 @@ function Optimize-WindowsTelemetryAndPrivacy {
             Disable-ScheduledTask -TaskPath (Split-Path $task) -TaskName (Split-Path $task -Leaf) -ErrorAction SilentlyContinue | Out-Null
         }
 
-        Write-ToolLog "Políticas e tarefas de telemetria desativadas com sucesso." "SUCCESS"
+        Write-ToolLog "Telemetria e tarefas agendadas de rastreamento desativadas." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao ajustar telemetria: $_" "ERROR"
     }
+}
+
+function Optimize-WindowsServicesManual {
+    Write-ToolLog "Configurando serviços secundários pesados para Manual ou Desativado (Estilo WinUtil)..." "INFO"
+    
+    $servicesToDisable = @(
+        "DiagTrack",
+        "dmwappushservice",
+        "RetailDemo",
+        "RemoteRegistry",
+        "diagnosticshub.standardcollector.service"
+    )
+
+    $servicesToManual = @(
+        "MapsBroker",
+        "lfsvc",
+        "SensorService",
+        "SensrSvc",
+        "WbioSrvc",
+        "Fax",
+        "wisvc",
+        "SharedAccess",
+        "WMPNetworkSvc",
+        "WerSvc"
+    )
+
+    foreach ($s in $servicesToDisable) {
+        $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
+        if ($svc) {
+            Stop-Service -Name $s -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $s -StartupType Disabled -ErrorAction SilentlyContinue
+            Write-ToolLog "Serviço [$s] -> Desativado." "INFO"
+        }
+    }
+
+    foreach ($s in $servicesToManual) {
+        $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
+        if ($svc) {
+            Set-Service -Name $s -StartupType Manual -ErrorAction SilentlyContinue
+            Write-ToolLog "Serviço [$s] -> Manual." "INFO"
+        }
+    }
+
+    Write-ToolLog "Otimização de serviços do Windows concluída." "SUCCESS"
 }
 
 function Disable-GameDvrAndBackgroundRecording {
@@ -370,7 +408,6 @@ function Disable-GameDvrAndBackgroundRecording {
 function Disable-StartMenuAdsAndBingSearch {
     Write-ToolLog "Desativando pesquisas da Web (Bing) e anúncios patrocinados no Menu Iniciar..." "INFO"
     try {
-        # Desativar Bing no Menu Iniciar
         $searchKey = "HKCU:\Software\Policies\Microsoft\Windows\Explorer"
         if (-not (Test-Path $searchKey)) { New-Item -Path $searchKey -Force | Out-Null }
         Set-ItemProperty -Path $searchKey -Name "DisableSearchBoxSuggestions" -Value 1 -Type DWord -Force
@@ -380,7 +417,6 @@ function Disable-StartMenuAdsAndBingSearch {
         Set-ItemProperty -Path $userSearchKey -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
         Set-ItemProperty -Path $userSearchKey -Name "CortanaConsent" -Value 0 -Type DWord -Force
 
-        # Desativar aplicativos sugeridos / instalados silenciosamente pela Microsoft
         $contentDeliveryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
         if (Test-Path $contentDeliveryKey) {
             Set-ItemProperty -Path $contentDeliveryKey -Name "SystemPaneSuggestionsEnabled" -Value 0 -Type DWord -Force
@@ -396,15 +432,11 @@ function Disable-StartMenuAdsAndBingSearch {
 }
 
 function Optimize-SystemResponsivenessAndVisuals {
-    Write-ToolLog "Ajustando tempo de resposta de menus e animações do Windows..." "INFO"
+    Write-ToolLog "Ajustando tempo de resposta de menus e prioridade de CPU..." "INFO"
     try {
-        # Acelerar abertura de menus suspensos (MenuShowDelay de 400ms para 10ms)
         Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "MenuShowDelay" -Value "10" -Force
-
-        # Otimizar agendador de prioridade de CPU para programas em primeiro plano
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "Win32PrioritySeparation" -Value 38 -Type DWord -Force
-
-        Write-ToolLog "Prioridade de processos e velocidade de menus aceleradas." "SUCCESS"
+        Write-ToolLog "Prioridade de processos em foco e velocidade de menus aceleradas." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao aplicar ajustes visuais: $_" "ERROR"
     }
@@ -477,6 +509,362 @@ function Invoke-SystemDebloatAppx {
     }
 
     Write-ToolLog "Debloat de aplicativos concluído. Pacotes removidos: $removed." "SUCCESS"
+}
+
+# ==============================================================================
+# PERFIS PRÉ-CONFIGURADOS COM 1 CLIQUE (ESTILO CHRIS TITUS WINUTIL)
+# ==============================================================================
+
+function Apply-DesktopRecommendedProfile {
+    Write-ToolLog "=== APLICANDO PERFIL RECOMENDADO: DESKTOP / PC DE MESA ===" "INFO"
+    Set-RestorePoint -Description "WinRepair_Pre_DesktopProfile"
+    Clear-TempFiles
+    Optimize-WindowsTelemetryAndPrivacy
+    Disable-StartMenuAdsAndBingSearch
+    Disable-GameDvrAndBackgroundRecording
+    Set-HibernationState -Enable $false
+    Optimize-WindowsServicesManual
+    Enable-UltimatePerformancePowerPlan
+    Set-ShowFileExtensions -Enable $true
+    Set-ShowHiddenFiles -Enable $true
+    Set-ExplorerOpenToThisPC
+    Disable-MouseAcceleration
+    Optimize-SsdTrim
+    Write-ToolLog "=== PERFIL DESKTOP APLICADO COM SUCESSO! ===" "SUCCESS"
+}
+
+function Apply-LaptopRecommendedProfile {
+    Write-ToolLog "=== APLICANDO PERFIL RECOMENDADO: NOTEBOOK / LAPTOP ===" "INFO"
+    Set-RestorePoint -Description "WinRepair_Pre_LaptopProfile"
+    Clear-TempFiles
+    Optimize-WindowsTelemetryAndPrivacy
+    Disable-StartMenuAdsAndBingSearch
+    Disable-GameDvrAndBackgroundRecording
+    # Notebooks MANTÊM a hibernação para segurança da bateria
+    Set-HibernationState -Enable $true
+    Optimize-WindowsServicesManual
+    Set-ShowFileExtensions -Enable $true
+    Set-ExplorerOpenToThisPC
+    Optimize-SsdTrim
+    Write-ToolLog "=== PERFIL NOTEBOOK APLICADO COM SUCESSO! ===" "SUCCESS"
+}
+
+function Apply-GamerUltimateProfile {
+    Write-ToolLog "=== APLICANDO PERFIL GAMER & MÁXIMO DESEMPENHO ===" "INFO"
+    Set-RestorePoint -Description "WinRepair_Pre_GamerProfile"
+    Clear-TempFiles
+    Optimize-WindowsTelemetryAndPrivacy
+    Disable-StartMenuAdsAndBingSearch
+    Disable-GameDvrAndBackgroundRecording
+    Set-HibernationState -Enable $false
+    Optimize-WindowsServicesManual
+    Enable-UltimatePerformancePowerPlan
+    Optimize-SystemResponsivenessAndVisuals
+    Disable-MouseAcceleration
+    Optimize-TcpLatencyAndThroughput
+    Optimize-SsdTrim
+    Write-ToolLog "=== PERFIL GAMER APLICADO COM SUCESSO! ===" "SUCCESS"
+}
+
+
+# ==============================================================================
+# Módulo: Ajustes de Usabilidade e Interface (Estilo Chris Titus WinUtil)
+# ==============================================================================
+
+function Set-RestorePoint {
+    param([string]$Description = "WinRepair_RestorePoint")
+    Write-ToolLog "Criando Ponto de Restauração do Sistema ($Description)..." "INFO"
+    try {
+        Enable-ComputerRestore -Drive "C:\" -ErrorAction SilentlyContinue | Out-Null
+        Checkpoint-Computer -Description $Description -RestorePointType "MODIFY_SETTINGS" -ErrorAction Stop
+        Write-ToolLog "Ponto de Restauração criado com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Não foi possível criar o Ponto de Restauração: $_ (Verifique se a Proteção do Sistema está ativada)." "WARN"
+    }
+}
+
+function Set-ShowFileExtensions {
+    param([bool]$Enable = $true)
+    Write-ToolLog "Configurando exibição de extensões de arquivo conhecidas..." "INFO"
+    try {
+        $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        $val = if ($Enable) { 0 } else { 1 }
+        Set-ItemProperty -Path $key -Name "HideFileExt" -Value $val -Type DWord -Force
+        Write-ToolLog "Extensões de arquivos visíveis: $Enable." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao ajustar exibição de extensões: $_" "ERROR"
+    }
+}
+
+function Set-ShowHiddenFiles {
+    param([bool]$Enable = $true)
+    Write-ToolLog "Configurando exibição de arquivos e pastas ocultas..." "INFO"
+    try {
+        $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        $val = if ($Enable) { 1 } else { 2 }
+        Set-ItemProperty -Path $key -Name "Hidden" -Value $val -Type DWord -Force
+        Write-ToolLog "Arquivos ocultos visíveis: $Enable." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao ajustar arquivos ocultos: $_" "ERROR"
+    }
+}
+
+function Set-ExplorerOpenToThisPC {
+    Write-ToolLog "Configurando o Windows Explorer para abrir em 'Este Computador' em vez do Acesso Rápido..." "INFO"
+    try {
+        $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        Set-ItemProperty -Path $key -Name "LaunchTo" -Value 1 -Type DWord -Force
+        Write-ToolLog "Explorer agora abre diretamente em 'Este Computador'." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao ajustar abertura do Explorer: $_" "ERROR"
+    }
+}
+
+function Set-SystemDarkMode {
+    param([bool]$Enable = $true)
+    Write-ToolLog "Aplicando Tema Escuro (Dark Mode) global no sistema e aplicativos..." "INFO"
+    try {
+        $key = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+        if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+        $val = if ($Enable) { 0 } else { 1 }
+        Set-ItemProperty -Path $key -Name "AppsUseLightTheme" -Value $val -Type DWord -Force
+        Set-ItemProperty -Path $key -Name "SystemUsesLightTheme" -Value $val -Type DWord -Force
+        Write-ToolLog "Tema Escuro aplicado com sucesso." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao ajustar Dark Mode: $_" "ERROR"
+    }
+}
+
+function Disable-MouseAcceleration {
+    Write-ToolLog "Desativando Aceleração do Mouse (Aprimorar Precisão do Ponteiro) para precisão 1:1 em jogos..." "INFO"
+    try {
+        Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseSpeed" -Value "0" -Force
+        Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold1" -Value "0" -Force
+        Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name "MouseThreshold2" -Value "0" -Force
+        Write-ToolLog "Aceleração do mouse desativada (precisão pura do sensor)." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao desativar aceleração do mouse: $_" "ERROR"
+    }
+}
+
+function Disable-Win11TaskbarJunk {
+    Write-ToolLog "Limpando itens inúteis da barra de tarefas do Windows 11 (Widgets, Copilot, Chat/Teams, TaskView)..." "INFO"
+    try {
+        $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        Set-ItemProperty -Path $key -Name "TaskbarDa" -Value 0 -Type DWord -Force          # Desativa Widgets
+        Set-ItemProperty -Path $key -Name "ShowCopilotButton" -Value 0 -Type DWord -Force  # Desativa Botão Copilot
+        Set-ItemProperty -Path $key -Name "ShowTaskViewButton" -Value 0 -Type DWord -Force # Desativa Visão de Tarefas
+
+        $chatKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People"
+        if (Test-Path $chatKey) {
+            Set-ItemProperty -Path $chatKey -Name "PeopleBand" -Value 0 -Type DWord -Force
+        }
+
+        # Reiniciar explorer para refletir alterações
+        Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
+        Write-ToolLog "Barra de tarefas limpa e sem distrações." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao ajustar barra de tarefas: $_" "ERROR"
+    }
+}
+
+function Add-TakeOwnershipContextMenu {
+    Write-ToolLog "Adicionando 'Obter Permissões' (Take Ownership) ao menu de contexto de arquivos e pastas..." "INFO"
+    try {
+        # Para arquivos
+        $fileKey = "HKCR:\*\shell\runas"
+        New-Item -Path $fileKey -Force | Out-Null
+        Set-ItemProperty -Path $fileKey -Name "(Default)" -Value "Obter Acesso Total (Take Ownership)" -Force
+        Set-ItemProperty -Path $fileKey -Name "NoWorkingDirectory" -Value "" -Force
+        $fileCmd = "$fileKey\command"
+        New-Item -Path $fileCmd -Force | Out-Null
+        Set-ItemProperty -Path $fileCmd -Name "(Default)" -Value "cmd.exe /c takeown /f `"%1`" && icacls `"%1`" /grant administrators:F" -Force
+        Set-ItemProperty -Path $fileCmd -Name "IsolatedCommand" -Value "cmd.exe /c takeown /f `"%1`" && icacls `"%1`" /grant administrators:F" -Force
+
+        # Para pastas
+        $dirKey = "HKCR:\Directory\shell\runas"
+        New-Item -Path $dirKey -Force | Out-Null
+        Set-ItemProperty -Path $dirKey -Name "(Default)" -Value "Obter Acesso Total (Take Ownership)" -Force
+        Set-ItemProperty -Path $dirKey -Name "NoWorkingDirectory" -Value "" -Force
+        $dirCmd = "$dirKey\command"
+        New-Item -Path $dirCmd -Force | Out-Null
+        Set-ItemProperty -Path $dirCmd -Name "(Default)" -Value "cmd.exe /c takeown /f `"%1`" /r /d y && icacls `"%1`" /grant administrators:F /t" -Force
+        Set-ItemProperty -Path $dirCmd -Name "IsolatedCommand" -Value "cmd.exe /c takeown /f `"%1`" /r /d y && icacls `"%1`" /grant administrators:F /t" -Force
+
+        Write-ToolLog "Atalho 'Take Ownership' adicionado ao menu do botão direito." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao adicionar Take Ownership: $_" "ERROR"
+    }
+}
+
+function Uninstall-OneDrivePurge {
+    Write-ToolLog "Iniciando desinstalação completa e remoção de resíduos do OneDrive..." "INFO"
+    try {
+        Stop-Process -Name "OneDrive" -Force -ErrorAction SilentlyContinue
+
+        $oneDriveSetup = @(
+            "$env:SystemRoot\SysWOW64\OneDriveSetup.exe",
+            "$env:SystemRoot\System32\OneDriveSetup.exe",
+            "$env:LOCALAPPDATA\Microsoft\OneDrive\Update\OneDriveSetup.exe"
+        ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+        if ($oneDriveSetup) {
+            Start-Process -FilePath $oneDriveSetup -ArgumentList "/uninstall" -Wait -NoNewWindow
+            Write-ToolLog "Desinstalador do OneDrive executado." "INFO"
+        }
+
+        # Remover pastas residuais
+        $dirs = @(
+            "$env:USERPROFILE\OneDrive",
+            "$env:LOCALAPPDATA\Microsoft\OneDrive",
+            "$env:PROGRAMDATA\Microsoft OneDrive"
+        )
+        foreach ($d in $dirs) {
+            if (Test-Path $d) {
+                Remove-Item -Path $d -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        # Remover OneDrive do painel lateral do Windows Explorer
+        $clsid = "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+        if (Test-Path $clsid) {
+            Set-ItemProperty -Path $clsid -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord -Force
+        }
+
+        Write-ToolLog "OneDrive desinstalado e removido do sistema com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao desinstalar OneDrive: $_" "ERROR"
+    }
+}
+
+
+# ==============================================================================
+# Módulo: Recursos Opcionais do Windows (Estilo WinUtil Config)
+# ==============================================================================
+
+function Get-FeatureStatus {
+    param([string]$FeatureName)
+    try {
+        $f = Get-WindowsOptionalFeature -Online -FeatureName $FeatureName -ErrorAction SilentlyContinue
+        return ($f.State -eq 'Enabled')
+    } catch {
+        return $false
+    }
+}
+
+function Enable-WslFeature {
+    Write-ToolLog "Habilitando Subsistema Windows para Linux (WSL) e Plataforma de Máquina Virtual..." "INFO"
+    try {
+        Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Windows-Subsystem-Linux" -NoRestart -ErrorAction Stop | Out-Null
+        Enable-WindowsOptionalFeature -Online -FeatureName "VirtualMachinePlatform" -NoRestart -ErrorAction Stop | Out-Null
+        Write-ToolLog "WSL 2 habilitado com sucesso. (Reinicialização necessária para concluir)." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao habilitar WSL: $_" "ERROR"
+    }
+}
+
+function Enable-WindowsSandbox {
+    Write-ToolLog "Habilitando Área Restrita do Windows (Windows Sandbox)..." "INFO"
+    try {
+        Enable-WindowsOptionalFeature -Online -FeatureName "Containers-DisposableClientVM" -NoRestart -ErrorAction Stop | Out-Null
+        Write-ToolLog "Windows Sandbox habilitado com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao habilitar Sandbox: $_" "ERROR"
+    }
+}
+
+function Enable-HyperVFeature {
+    Write-ToolLog "Habilitando Hyper-V e Ferramentas de Gerenciamento..." "INFO"
+    try {
+        Enable-WindowsOptionalFeature -Online -FeatureName "Microsoft-Hyper-V-All" -NoRestart -ErrorAction Stop | Out-Null
+        Write-ToolLog "Hyper-V habilitado com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao habilitar Hyper-V: $_" "ERROR"
+    }
+}
+
+function Enable-NetFramework35 {
+    Write-ToolLog "Instalando suporte ao .NET Framework 3.5 (.NET 2.0 e 3.0)..." "INFO"
+    try {
+        Enable-WindowsOptionalFeature -Online -FeatureName "NetFx3" -NoRestart -ErrorAction Stop | Out-Null
+        Write-ToolLog ".NET Framework 3.5 instalado com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao instalar .NET 3.5: $_" "ERROR"
+    }
+}
+
+
+# ==============================================================================
+# Módulo: Gerenciamento do Windows Update (Estilo Chris Titus Updates)
+# ==============================================================================
+
+function Set-WindowsUpdateRecommended {
+    Write-ToolLog "Configurando Windows Update para o Modo Recomendado (Apenas Segurança Estável)..." "INFO"
+    Write-ToolLog "Atrasa atualizações de recursos instáveis por 1 ano e evita reinicializações forçadas." "INFO"
+    try {
+        $wuPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
+        if (-not (Test-Path $wuPath)) { New-Item -Path $wuPath -Force | Out-Null }
+        
+        $auPath = "$wuPath\AU"
+        if (-not (Test-Path $auPath)) { New-Item -Path $auPath -Force | Out-Null }
+
+        # Não reiniciar automaticamente se houver usuário conectado
+        Set-ItemProperty -Path $auPath -Name "NoAutoRebootWithLoggedOnUsers" -Value 1 -Type DWord -Force
+        # Notificar para agendar reinicialização
+        Set-ItemProperty -Path $auPath -Name "AUOptions" -Value 2 -Type DWord -Force
+
+        # Adiar atualizações de recursos por 365 dias (estabilidade máxima)
+        Set-ItemProperty -Path $wuPath -Name "DeferFeatureUpdates" -Value 1 -Type DWord -Force
+        Set-ItemProperty -Path $wuPath -Name "DeferFeatureUpdatesPeriodInDays" -Value 365 -Type DWord -Force
+
+        # Adiar atualizações de qualidade por 4 dias (para evitar bugs de lançamento)
+        Set-ItemProperty -Path $wuPath -Name "DeferQualityUpdates" -Value 1 -Type DWord -Force
+        Set-ItemProperty -Path $wuPath -Name "DeferQualityUpdatesPeriodInDays" -Value 4 -Type DWord -Force
+
+        Write-ToolLog "Windows Update configurado no modo 'Segurança e Estabilidade Recomendada'." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao configurar Windows Update: $_" "ERROR"
+    }
+}
+
+function Reset-WindowsUpdateDefault {
+    Write-ToolLog "Restaurando Windows Update para as configurações originais de fábrica..." "INFO"
+    try {
+        $wuPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate"
+        if (Test-Path $wuPath) {
+            Remove-ItemProperty -Path $wuPath -Name "DeferFeatureUpdates" -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $wuPath -Name "DeferFeatureUpdatesPeriodInDays" -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $wuPath -Name "DeferQualityUpdates" -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $wuPath -Name "DeferQualityUpdatesPeriodInDays" -ErrorAction SilentlyContinue
+        }
+
+        $auPath = "$wuPath\AU"
+        if (Test-Path $auPath) {
+            Remove-ItemProperty -Path $auPath -Name "NoAutoRebootWithLoggedOnUsers" -ErrorAction SilentlyContinue
+            Remove-ItemProperty -Path $auPath -Name "AUOptions" -ErrorAction SilentlyContinue
+        }
+
+        Write-ToolLog "Windows Update restaurado para o padrão original da Microsoft." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao restaurar Windows Update: $_" "ERROR"
+    }
+}
+
+function Pause-WindowsUpdateExtended {
+    Write-ToolLog "Pausando atualizações do Windows Update por período estendido..." "INFO"
+    try {
+        $wuPath = "HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings"
+        if (-not (Test-Path $wuPath)) { New-Item -Path $wuPath -Force | Out-Null }
+        
+        $futureDate = "2042-01-01T00:00:00Z"
+        Set-ItemProperty -Path $wuPath -Name "PauseUpdatesExpiryTime" -Value $futureDate -Type String -Force
+        Set-ItemProperty -Path $wuPath -Name "PauseFeatureUpdatesStartTime" -Value "2026-01-01T00:00:00Z" -Type String -Force
+        Set-ItemProperty -Path $wuPath -Name "PauseQualityUpdatesStartTime" -Value "2026-01-01T00:00:00Z" -Type String -Force
+
+        Write-ToolLog "Atualizações do Windows pausadas." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao pausar atualizações: $_" "ERROR"
+    }
 }
 
 
@@ -1026,7 +1414,7 @@ if (-not (Test-IsAdmin)) {
     return
 }
 
-# 2. Carregar assemblies do WPF
+# 2. Carregar assemblies do WPF e Forms
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
@@ -1036,8 +1424,8 @@ Add-Type -AssemblyName System.Windows.Forms
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WinRepair &amp; Tweaks Utility"
-        Height="780" Width="1020"
+        Title="WinRepair &amp; Tweaks Pro"
+        Height="820" Width="1060"
         WindowStartupLocation="CenterScreen"
         Background="#181825"
         Foreground="#CDD6F4"
@@ -1049,18 +1437,18 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="BorderBrush" Value="#45475A"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Margin" Value="3"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="5"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -1082,7 +1470,7 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="Foreground" Value="#A6ADC8"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Background" Value="#1E1E2E"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -1110,15 +1498,15 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="BorderBrush" Value="#45475A"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="CaretBrush" Value="#89B4FA"/>
         </Style>
 
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Margin" Value="6,4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,3"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -1127,20 +1515,20 @@ Add-Type -AssemblyName System.Windows.Forms
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="#89B4FA"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="4,4,4,10"/>
-            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="3,3,3,8"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="14">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="170"/>
+            <RowDefinition Height="160"/>
         </Grid.RowDefinitions>
 
         <!-- Cabeçalho Principal -->
-        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="14,10" Margin="0,0,0,10" BorderBrush="#313244" BorderThickness="1">
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="14,10" Margin="0,0,0,8" BorderBrush="#313244" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -1148,41 +1536,107 @@ Add-Type -AssemblyName System.Windows.Forms
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Central Profissional de Otimização, Diagnóstico de Rede, Reparos e Criação de ISO" FontSize="12" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimizações, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Name="txtSystemInfo" Text="Identificando sistema..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
+                    <TextBlock Name="txtSystemInfo" Text="Identificando máquina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Abas Centrais -->
+        <!-- Abas Principais -->
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             
-            <!-- ABA 1: REDE & INTERNET -->
-            <TabItem Header="🌐 Rede &amp; Internet">
+            <!-- ABA 1: TWEAKS & PERFIS (ESTILO WINUTIL TWEAKS) -->
+            <TabItem Header="⚡ Tweaks &amp; Otimização">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Diagnóstico e Teste de Conexão">
+                    <StackPanel Margin="8">
+                        <!-- Barra de Perfis com 1 Clique -->
+                        <Border Background="#24273A" CornerRadius="6" Padding="10" Margin="2,0,2,8" BorderBrush="#45475A" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Perfis Recomendados (1 Clique):" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <Button Name="btnProfileDesktop" Content="🖥️ Perfil Desktop" Padding="12,6" Background="#313244" Foreground="#A6E3A1"/>
+                                    <Button Name="btnProfileLaptop" Content="💻 Perfil Notebook" Padding="12,6" Background="#313244" Foreground="#89B4FA"/>
+                                    <Button Name="btnProfileGamer" Content="🎮 Perfil Gamer Extremo" Padding="12,6" Background="#313244" Foreground="#F38BA8"/>
+                                </WrapPanel>
+                                <Button Name="btnCreateRestorePoint" Grid.Column="2" Content="🛡️ Criar Ponto de Restauração" Padding="10,6" Background="#45475A"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Grade de Tweaks Granulares -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Coluna 1: Essenciais & Desempenho -->
+                            <GroupBox Grid.Column="0" Header="Essenciais &amp; Desempenho">
+                                <StackPanel>
+                                    <CheckBox Name="chkCleanTemp" Content="Limpar Arquivos Temporários" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableTelemetry" Content="Desativar Telemetria &amp; CEIP" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableBingSearch" Content="Desativar Bing no Menu Iniciar" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableGameDvr" Content="Desativar GameDVR (Input Lag)" IsChecked="True"/>
+                                    <CheckBox Name="chkOptimizeServices" Content="Serviços Pesados em Manual" IsChecked="True"/>
+                                    <CheckBox Name="chkUltimatePower" Content="Plano 'Desempenho Máximo'" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableHibernation" Content="Desativar Hibernação (Desktop)" IsChecked="False"/>
+                                    <CheckBox Name="chkFastVisuals" Content="Acelerar Menus (MenuShowDelay)" IsChecked="True"/>
+                                    <CheckBox Name="chkSsdTrim" Content="Otimizar SSDs (Executar TRIM)" IsChecked="True"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Coluna 2: Interface & Usabilidade -->
+                            <GroupBox Grid.Column="1" Header="Interface &amp; Usabilidade">
+                                <StackPanel>
+                                    <CheckBox Name="chkShowFileExt" Content="Mostrar Extensões de Arquivo" IsChecked="True"/>
+                                    <CheckBox Name="chkShowHiddenFiles" Content="Mostrar Arquivos Ocultos" IsChecked="True"/>
+                                    <CheckBox Name="chkExplorerThisPc" Content="Explorer abre em 'Este Computador'" IsChecked="True"/>
+                                    <CheckBox Name="chkDarkMode" Content="Ativar Tema Escuro (Dark Mode)" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableMouseAccel" Content="Desativar Aceleração do Mouse (1:1)" IsChecked="True"/>
+                                    <CheckBox Name="chkCleanWin11Taskbar" Content="Limpar Barra Tarefas (Widgets/Copilot)" IsChecked="True"/>
+                                    <CheckBox Name="chkTakeOwnership" Content="Adicionar 'Take Ownership' no Menu" IsChecked="True"/>
+                                    <CheckBox Name="chkUninstallOneDrive" Content="Desinstalar e Purgar OneDrive" IsChecked="False"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Coluna 3: Rede & TCP Gaming -->
+                            <GroupBox Grid.Column="2" Header="Rede &amp; Conectividade">
+                                <StackPanel>
+                                    <CheckBox Name="chkOptimizeTcp" Content="Otimizar Latência TCP (AutoTune, RSS)" IsChecked="True"/>
+                                    <CheckBox Name="chkFlushDns" Content="Limpar Cache DNS" IsChecked="True"/>
+                                    <CheckBox Name="chkRenewDhcp" Content="Renovar Concessão de IP / DHCP" IsChecked="False"/>
+                                    <CheckBox Name="chkResetNetwork" Content="Redefinir Pilha de Rede Completa" IsChecked="False"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Grid>
+
+                        <!-- Botão Aplicar Selecionados -->
+                        <Button Name="btnApplySelectedTweaks" Content="🚀 Aplicar Todos os Tweaks Selecionados" Height="42" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,8,2,2"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ABA 2: REDE & DNS -->
+            <TabItem Header="🌐 Rede &amp; Conectividade">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Diagnóstico da Conexão">
                             <WrapPanel>
-                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="38"/>
-                                <Button Name="btnFlushDns" Content="Limpar Cache DNS" Width="180" Height="38"/>
-                                <Button Name="btnRenewDhcp" Content="Renovar IP / DHCP" Width="180" Height="38"/>
-                                <Button Name="btnRestartAdapters" Content="Reiniciar Adaptadores de Rede" Width="220" Height="38"/>
+                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="36"/>
+                                <Button Name="btnFlushDnsTab" Content="Limpar Cache DNS" Width="180" Height="36"/>
+                                <Button Name="btnRenewDhcpTab" Content="Renovar IP / DHCP" Width="180" Height="36"/>
+                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="210" Height="36"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Otimização Avançada TCP/IP (Baixa Latência &amp; Gaming)">
-                            <StackPanel>
-                                <TextBlock Text="Ajusta o TCP Auto-Tuning, RSS (Receive Side Scaling), ECN e remove o índice de limitação de rede multimídia." FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,8"/>
-                                <WrapPanel>
-                                    <Button Name="btnOptimizeTcp" Content="🚀 Aplicar Otimizações de Latência TCP" Width="280" Height="38"/>
-                                    <Button Name="btnResetNetwork" Content="⚠️ Redefinir Pilha Completa (Winsock/IP/Firewall)" Width="340" Height="38"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Troca Rápida de Servidores DNS">
+                        <GroupBox Header="Troca Rápida de DNS">
                             <WrapPanel>
                                 <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="210" Height="36"/>
                                 <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confiável" Width="210" Height="36"/>
@@ -1195,61 +1649,38 @@ Add-Type -AssemblyName System.Windows.Forms
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 2: OTIMIZAÇÕES & DEBLOAT -->
-            <TabItem Header="⚡ Otimização &amp; Debloat">
+            <!-- ABA 3: RECURSOS & UPDATES (ESTILO WINUTIL CONFIG & UPDATES) -->
+            <TabItem Header="⚙️ Recursos &amp; Updates">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Limpeza e Armazenamento">
-                            <WrapPanel>
-                                <Button Name="btnClearTemp" Content="Limpeza Profunda de Temporários &amp; Lixeira" Width="280" Height="38"/>
-                                <Button Name="btnClearWuCache" Content="Limpar Cache Corrompido do Windows Update" Width="290" Height="38"/>
-                                <Button Name="btnSsdTrim" Content="Otimizar SSDs (Executar TRIM)" Width="230" Height="38"/>
-                            </WrapPanel>
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Gerenciamento do Windows Update (Estilo Chris Titus)">
+                            <StackPanel>
+                                <TextBlock Text="Controle como o Windows Update lida com atualizações para evitar travamentos e reinicializações forçadas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Name="btnWuRecommended" Content="🛡️ Modo Recomendado (Segurança Estável &amp; Sem Reinício Forçado)" Width="460" Height="36"/>
+                                    <Button Name="btnWuDefault" Content="🔄 Restaurar Padrão da Microsoft" Width="240" Height="36"/>
+                                    <Button Name="btnWuPause" Content="⏸️ Pausar Atualizações (Até 2042)" Width="230" Height="36"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Desempenho do Sistema &amp; Jogos">
+                        <GroupBox Header="Recursos Opcionais do Windows (Ativação com 1 Clique)">
                             <WrapPanel>
-                                <Button Name="btnUltimatePower" Content="🔥 Ativar Plano 'Desempenho Máximo'" Width="270" Height="38"/>
-                                <Button Name="btnDisableGameDvr" Content="🎮 Desativar GameDVR (Reduz Input Lag)" Width="270" Height="38"/>
-                                <Button Name="btnFastVisuals" Content="⚡ Acelerar Resposta de Menus e Janelas" Width="270" Height="38"/>
-                                <Button Name="btnDisableHibernation" Content="Desativar Hibernação (Liberar GBs)" Width="240" Height="38"/>
-                                <Button Name="btnEnableHibernation" Content="Ativar Hibernação" Width="160" Height="38"/>
-                            </WrapPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Privacidade e Remoção de Bloatware">
-                            <WrapPanel>
-                                <Button Name="btnDebloatApps" Content="🗑️ Remover Bloatware e Apps Inúteis (AppX)" Width="310" Height="38"/>
-                                <Button Name="btnOptimizeTelemetry" Content="🛡️ Desativar Telemetria Profunda e Rastreamento" Width="320" Height="38"/>
-                                <Button Name="btnDisableStartAds" Content="🚫 Remover Bing e Anúncios do Menu Iniciar" Width="300" Height="38"/>
+                                <Button Name="btnEnableWsl" Content="Ativar WSL 2 (Subsistema Linux)" Width="240" Height="36"/>
+                                <Button Name="btnEnableSandbox" Content="Ativar Windows Sandbox" Width="210" Height="36"/>
+                                <Button Name="btnEnableHyperV" Content="Ativar Hyper-V" Width="180" Height="36"/>
+                                <Button Name="btnEnableNet35" Content="Ativar .NET Framework 3.5" Width="220" Height="36"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 3: REPARO DO SISTEMA -->
-            <TabItem Header="🛠️ Reparo do Sistema">
+            <!-- ABA 4: MICROWIN / CRIADOR DE ISO -->
+            <TabItem Header="💿 MicroWin (Criador de ISO)">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Integridade de Arquivos e Componentes">
-                            <WrapPanel>
-                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="38"/>
-                                <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="260" Height="38"/>
-                                <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="250" Height="38"/>
-                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="38"/>
-                                <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="38"/>
-                            </WrapPanel>
-                        </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- ABA 4: CRIADOR DE ISO CUSTOMIZADA -->
-            <TabItem Header="💿 Criador de ISO (Win 10/11)">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="1. Seleção da Imagem ISO de Origem">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="1. Seleção da Imagem ISO Oficial">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -1264,7 +1695,7 @@ Add-Type -AssemblyName System.Windows.Forms
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="2. Destino da Nova ISO">
+                        <GroupBox Header="2. Destino e Edição">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -1282,36 +1713,41 @@ Add-Type -AssemblyName System.Windows.Forms
                                 <Button Name="btnBrowseOutputDir" Grid.Row="0" Grid.Column="2" Content="Selecionar Pasta..." Width="120" Height="32" Margin="0,0,0,4"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Nome do Arquivo:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                <TextBox Name="txtOutputIsoName" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Text="Windows_Custom_Otimizado.iso"/>
+                                <TextBox Name="txtOutputIsoName" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Text="Windows_MicroWin_Custom.iso"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="Índice da Edição:" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#A6ADC8" Margin="0,0,6,0"/>
                                 <TextBox Name="txtEditionIndex" Grid.Row="1" Grid.Column="3" Text="1" Width="50" HorizontalAlignment="Left"/>
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="3. Otimizações a Injetar Diretamente na Imagem">
+                        <GroupBox Header="3. Modificações MicroWin a Injetar">
                             <StackPanel>
-                                <CheckBox Name="chkIsoBypassHw" Content="Bypass de Requisitos do Windows 11 (Ignorar TPM 2.0, Secure Boot, RAM e CPU)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigatória (Permitir criar Conta Local offline - BypassNRO)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Automática do BitLocker durante a instalação" IsChecked="True"/>
+                                <CheckBox Name="chkIsoBypassHw" Content="Bypass de Requisitos Win 11 (Ignora TPM 2.0, Secure Boot, RAM e CPU)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigatória (Permite criar Conta Local offline - BypassNRO)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Automática do BitLocker no primeiro boot" IsChecked="True"/>
                                 <CheckBox Name="chkIsoDebloat" Content="Remover Bloatware AppX na raiz da imagem (Xbox overlays, Clipchamp, Notícias, Jogos)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas chatas de termos, telemetria e propaganda no primeiro uso)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas de termos, diagnóstico e anúncios no primeiro boot)" IsChecked="True"/>
                             </StackPanel>
                         </GroupBox>
 
-                        <Border Background="#24273A" CornerRadius="6" Padding="12" Margin="4,4,4,8">
-                            <Button Name="btnBuildCustomIso" Content="🚀 Iniciar Criação da ISO Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B"/>
-                        </Border>
+                        <Button Name="btnBuildCustomIso" Content="🚀 Gerar Nova ISO MicroWin Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,4,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 5: SOFTWARES ESSENCIAIS (WINGET) -->
+            <!-- ABA 5: SOFTWARES (WINGET) -->
             <TabItem Header="📦 Softwares">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Selecione os programas que deseja instalar silenciosamente no computador via Winget:" FontSize="12" Foreground="#A6ADC8" Margin="4,0,0,8"/>
-                        
+                    <StackPanel Margin="8">
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Instale ou atualize silenciosamente os softwares essenciais via Winget:" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                            <Button Name="btnUpgradeAllSoftware" Grid.Column="1" Content="🔄 Atualizar Todos os Apps (winget upgrade --all)" Padding="10,5"/>
+                        </Grid>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -1336,63 +1772,80 @@ Add-Type -AssemblyName System.Windows.Forms
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Grid.Column="2" Header="Mídia &amp; Outros">
+                            <GroupBox Grid.Column="2" Header="Mídia &amp; Dev/Jogos">
                                 <StackPanel>
                                     <CheckBox Name="chkSoftwareVlc" Content="VLC Media Player" Tag="VideoLAN.VLC"/>
-                                    <CheckBox Name="chkSoftwareVsCode" Content="VS Code" Tag="Microsoft.VisualStudioCode"/>
+                                    <CheckBox Name="chkSoftwareVsCode" Content="Visual Studio Code" Tag="Microsoft.VisualStudioCode"/>
                                     <CheckBox Name="chkSoftwareSteam" Content="Steam" Tag="Valve.Steam"/>
                                     <CheckBox Name="chkSoftwareDiscord" Content="Discord" Tag="Discord.Discord"/>
                                 </StackPanel>
                             </GroupBox>
                         </Grid>
 
-                        <Button Name="btnInstallSelectedSoftware" Content="Baixar e Instalar Softwares Selecionados" Height="40" Margin="4,10,4,0"/>
+                        <Button Name="btnInstallSelectedSoftware" Content="Baixar e Instalar Softwares Selecionados" Height="38" Margin="2,8,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 6: LICENCIAMENTO -->
+            <!-- ABA 6: REPAROS DO SISTEMA -->
+            <TabItem Header="🛠️ Reparo do SO">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Integridade de Arquivos e Componentes">
+                            <WrapPanel>
+                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="36"/>
+                                <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="260" Height="36"/>
+                                <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="250" Height="36"/>
+                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="36"/>
+                                <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="36"/>
+                            </WrapPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ABA 7: LICENCIAMENTO -->
             <TabItem Header="🔑 Licenciamento">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Gerenciamento de Licença do Windows">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Licença do Windows">
                             <StackPanel>
-                                <WrapPanel Margin="0,0,0,8">
-                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="36"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="34"/>
                                 </WrapPanel>
-                                <Grid Margin="0,4">
+                                <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Chave do Windows:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                    <TextBox Name="txtWinKey" Grid.Column="1" Margin="0,0,8,0" Text="" ToolTip="Formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"/>
-                                    <Button Name="btnApplyWinKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="180" Height="34"/>
+                                    <TextBox Name="txtWinKey" Grid.Column="1" Margin="0,0,8,0" Text=""/>
+                                    <Button Name="btnApplyWinKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="170" Height="32"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Gerenciamento de Licença do Microsoft Office">
+                        <GroupBox Header="Licença do Microsoft Office">
                             <StackPanel>
-                                <WrapPanel Margin="0,0,0,8">
-                                    <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="36"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="34"/>
                                 </WrapPanel>
-                                <Grid Margin="0,4">
+                                <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Chave do Office:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                    <TextBox Name="txtOfficeKey" Grid.Column="1" Margin="0,0,8,0" Text="" ToolTip="Formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"/>
-                                    <Button Name="btnApplyOfficeKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="180" Height="34"/>
+                                    <TextBox Name="txtOfficeKey" Grid.Column="1" Margin="0,0,8,0" Text=""/>
+                                    <Button Name="btnApplyOfficeKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="170" Height="32"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Configuração de Servidor KMS Institucional / Corporativo">
-                            <Grid Margin="0,4">
+                        <GroupBox Header="Servidor KMS Institucional">
+                            <Grid Margin="0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="130"/>
                                     <ColumnDefinition Width="*"/>
@@ -1400,7 +1853,7 @@ Add-Type -AssemblyName System.Windows.Forms
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Host KMS Oficial:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtKmsHost" Grid.Column="1" Margin="0,0,8,0" Text="kms.dominio.local"/>
-                                <Button Name="btnSetKms" Grid.Column="2" Content="Configurar Servidor KMS" Width="180" Height="34"/>
+                                <Button Name="btnSetKms" Grid.Column="2" Content="Configurar Servidor KMS" Width="170" Height="32"/>
                             </Grid>
                         </GroupBox>
                     </StackPanel>
@@ -1408,21 +1861,21 @@ Add-Type -AssemblyName System.Windows.Forms
             </TabItem>
         </TabControl>
 
-        <!-- Painel Inferior de Logs em Tempo Real -->
+        <!-- Painel Inferior de Logs -->
         <Border Grid.Row="2" Background="#11111B" CornerRadius="8" Margin="0,8,0,0" BorderBrush="#313244" BorderThickness="1">
-            <Grid Margin="8">
+            <Grid Margin="6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="0,0,0,4">
+                <Grid Grid.Row="0" Margin="0,0,0,2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs em Tempo Real" FontSize="12" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
-                    <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="8,4" FontSize="11" Margin="0"/>
+                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs em Tempo Real" FontSize="11" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                    <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="6,3" FontSize="11" Margin="0"/>
                 </Grid>
 
                 <TextBox Name="txtLog" Grid.Row="1"
@@ -1469,13 +1922,76 @@ function Start-AsyncAction {
     }) | Out-Null
 }
 
-# --- BINDS REDE ---
+# --- PERFIS PRONTOS (1 CLIQUE) ---
+$window.FindName("btnProfileDesktop").Add_Click({ Start-AsyncAction { Apply-DesktopRecommendedProfile } })
+$window.FindName("btnProfileLaptop").Add_Click({ Start-AsyncAction { Apply-LaptopRecommendedProfile } })
+$window.FindName("btnProfileGamer").Add_Click({ Start-AsyncAction { Apply-GamerUltimateProfile } })
+$window.FindName("btnCreateRestorePoint").Add_Click({ Start-AsyncAction { Set-RestorePoint } })
+
+# --- APLICAR TWEAKS SELECIONADOS ---
+$window.FindName("btnApplySelectedTweaks").Add_Click({
+    $tweaks = @{
+        CleanTemp           = [bool]$window.FindName("chkCleanTemp").IsChecked
+        DisableTelemetry    = [bool]$window.FindName("chkDisableTelemetry").IsChecked
+        DisableBingSearch   = [bool]$window.FindName("chkDisableBingSearch").IsChecked
+        DisableGameDvr      = [bool]$window.FindName("chkDisableGameDvr").IsChecked
+        OptimizeServices    = [bool]$window.FindName("chkOptimizeServices").IsChecked
+        UltimatePower       = [bool]$window.FindName("chkUltimatePower").IsChecked
+        DisableHibernation  = [bool]$window.FindName("chkDisableHibernation").IsChecked
+        FastVisuals         = [bool]$window.FindName("chkFastVisuals").IsChecked
+        SsdTrim             = [bool]$window.FindName("chkSsdTrim").IsChecked
+
+        ShowFileExt         = [bool]$window.FindName("chkShowFileExt").IsChecked
+        ShowHiddenFiles     = [bool]$window.FindName("chkShowHiddenFiles").IsChecked
+        ExplorerThisPc      = [bool]$window.FindName("chkExplorerThisPc").IsChecked
+        DarkMode            = [bool]$window.FindName("chkDarkMode").IsChecked
+        DisableMouseAccel   = [bool]$window.FindName("chkDisableMouseAccel").IsChecked
+        CleanWin11Taskbar   = [bool]$window.FindName("chkCleanWin11Taskbar").IsChecked
+        TakeOwnership       = [bool]$window.FindName("chkTakeOwnership").IsChecked
+        UninstallOneDrive   = [bool]$window.FindName("chkUninstallOneDrive").IsChecked
+
+        OptimizeTcp         = [bool]$window.FindName("chkOptimizeTcp").IsChecked
+        FlushDns            = [bool]$window.FindName("chkFlushDns").IsChecked
+        RenewDhcp           = [bool]$window.FindName("chkRenewDhcp").IsChecked
+        ResetNetwork        = [bool]$window.FindName("chkResetNetwork").IsChecked
+    }
+
+    Start-AsyncAction {
+        Write-ToolLog "=== INICIANDO APLICAÇÃO DOS TWEAKS SELECIONADOS ===" "INFO"
+
+        if ($using:tweaks.CleanTemp) { Clear-TempFiles }
+        if ($using:tweaks.DisableTelemetry) { Optimize-WindowsTelemetryAndPrivacy }
+        if ($using:tweaks.DisableBingSearch) { Disable-StartMenuAdsAndBingSearch }
+        if ($using:tweaks.DisableGameDvr) { Disable-GameDvrAndBackgroundRecording }
+        if ($using:tweaks.OptimizeServices) { Optimize-WindowsServicesManual }
+        if ($using:tweaks.UltimatePower) { Enable-UltimatePerformancePowerPlan }
+        if ($using:tweaks.DisableHibernation) { Set-HibernationState -Enable $false }
+        if ($using:tweaks.FastVisuals) { Optimize-SystemResponsivenessAndVisuals }
+        if ($using:tweaks.SsdTrim) { Optimize-SsdTrim }
+
+        if ($using:tweaks.ShowFileExt) { Set-ShowFileExtensions -Enable $true }
+        if ($using:tweaks.ShowHiddenFiles) { Set-ShowHiddenFiles -Enable $true }
+        if ($using:tweaks.ExplorerThisPc) { Set-ExplorerOpenToThisPC }
+        if ($using:tweaks.DarkMode) { Set-SystemDarkMode -Enable $true }
+        if ($using:tweaks.DisableMouseAccel) { Disable-MouseAcceleration }
+        if ($using:tweaks.CleanWin11Taskbar) { Disable-Win11TaskbarJunk }
+        if ($using:tweaks.TakeOwnership) { Add-TakeOwnershipContextMenu }
+        if ($using:tweaks.UninstallOneDrive) { Uninstall-OneDrivePurge }
+
+        if ($using:tweaks.OptimizeTcp) { Optimize-TcpLatencyAndThroughput }
+        if ($using:tweaks.FlushDns) { Invoke-FlushDns }
+        if ($using:tweaks.RenewDhcp) { Invoke-RenewDhcp }
+        if ($using:tweaks.ResetNetwork) { Invoke-ResetNetworkStack }
+
+        Write-ToolLog "=== TODOS OS TWEAKS SELECIONADOS FORAM APLICADOS COM SUCESSO! ===" "SUCCESS"
+    }
+})
+
+# --- ABA 2: REDE ---
 $window.FindName("btnTestNetwork").Add_Click({ Start-AsyncAction { Test-NetworkQuality } })
-$window.FindName("btnFlushDns").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
-$window.FindName("btnRenewDhcp").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
+$window.FindName("btnFlushDnsTab").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
+$window.FindName("btnRenewDhcpTab").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
 $window.FindName("btnRestartAdapters").Add_Click({ Start-AsyncAction { Restart-NetworkAdapters } })
-$window.FindName("btnOptimizeTcp").Add_Click({ Start-AsyncAction { Optimize-TcpLatencyAndThroughput } })
-$window.FindName("btnResetNetwork").Add_Click({ Start-AsyncAction { Invoke-ResetNetworkStack } })
 
 $window.FindName("btnDnsCloudflare").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Cloudflare" } })
 $window.FindName("btnDnsGoogle").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Google" } })
@@ -1483,27 +1999,17 @@ $window.FindName("btnDnsQuad9").Add_Click({ Start-AsyncAction { Set-QuickDnsProv
 $window.FindName("btnDnsAdGuard").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "AdGuard" } })
 $window.FindName("btnDnsDhcp").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "DHCP" } })
 
-# --- BINDS OTIMIZAÇÃO ---
-$window.FindName("btnClearTemp").Add_Click({ Start-AsyncAction { Clear-TempFiles } })
-$window.FindName("btnClearWuCache").Add_Click({ Start-AsyncAction { Clear-WindowsUpdateCache } })
-$window.FindName("btnSsdTrim").Add_Click({ Start-AsyncAction { Optimize-SsdTrim } })
-$window.FindName("btnUltimatePower").Add_Click({ Start-AsyncAction { Enable-UltimatePerformancePowerPlan } })
-$window.FindName("btnDisableGameDvr").Add_Click({ Start-AsyncAction { Disable-GameDvrAndBackgroundRecording } })
-$window.FindName("btnFastVisuals").Add_Click({ Start-AsyncAction { Optimize-SystemResponsivenessAndVisuals } })
-$window.FindName("btnDisableHibernation").Add_Click({ Start-AsyncAction { Set-HibernationState -Enable $false } })
-$window.FindName("btnEnableHibernation").Add_Click({ Start-AsyncAction { Set-HibernationState -Enable $true } })
-$window.FindName("btnDebloatApps").Add_Click({ Start-AsyncAction { Invoke-SystemDebloatAppx } })
-$window.FindName("btnOptimizeTelemetry").Add_Click({ Start-AsyncAction { Optimize-WindowsTelemetryAndPrivacy } })
-$window.FindName("btnDisableStartAds").Add_Click({ Start-AsyncAction { Disable-StartMenuAdsAndBingSearch } })
+# --- ABA 3: RECURSOS & UPDATES ---
+$window.FindName("btnWuRecommended").Add_Click({ Start-AsyncAction { Set-WindowsUpdateRecommended } })
+$window.FindName("btnWuDefault").Add_Click({ Start-AsyncAction { Reset-WindowsUpdateDefault } })
+$window.FindName("btnWuPause").Add_Click({ Start-AsyncAction { Pause-WindowsUpdateExtended } })
 
-# --- BINDS REPARO ---
-$window.FindName("btnSfcScan").Add_Click({ Start-AsyncAction { Invoke-SfcScan } })
-$window.FindName("btnDismRepair").Add_Click({ Start-AsyncAction { Invoke-DismRepair } })
-$window.FindName("btnDismCleanup").Add_Click({ Start-AsyncAction { Invoke-DismCleanup } })
-$window.FindName("btnRestartSpooler").Add_Click({ Start-AsyncAction { Restart-PrintSpooler } })
-$window.FindName("btnScheduleChkdsk").Add_Click({ Start-AsyncAction { Schedule-ChkdskOnReboot } })
+$window.FindName("btnEnableWsl").Add_Click({ Start-AsyncAction { Enable-WslFeature } })
+$window.FindName("btnEnableSandbox").Add_Click({ Start-AsyncAction { Enable-WindowsSandbox } })
+$window.FindName("btnEnableHyperV").Add_Click({ Start-AsyncAction { Enable-HyperVFeature } })
+$window.FindName("btnEnableNet35").Add_Click({ Start-AsyncAction { Enable-NetFramework35 } })
 
-# --- BINDS CRIADOR DE ISO ---
+# --- ABA 4: MICROWIN / CRIADOR DE ISO ---
 $window.FindName("btnBrowseIso").Add_Click({
     $selected = Select-IsoFileDialog
     if ($selected) {
@@ -1560,7 +2066,7 @@ $window.FindName("btnBuildCustomIso").Add_Click({
     }
 })
 
-# --- BINDS SOFTWARES (WINGET) ---
+# --- ABA 5: SOFTWARES (WINGET) ---
 $window.FindName("btnInstallSelectedSoftware").Add_Click({
     $softBoxes = @(
         $window.FindName("chkSoftwareChrome"),
@@ -1593,7 +2099,22 @@ $window.FindName("btnInstallSelectedSoftware").Add_Click({
     }
 })
 
-# --- BINDS LICENCIAMENTO ---
+$window.FindName("btnUpgradeAllSoftware").Add_Click({
+    Start-AsyncAction {
+        Write-ToolLog "Iniciando atualização de todos os programas instalados via Winget..." "INFO"
+        Start-Process winget.exe -ArgumentList "upgrade --all --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
+        Write-ToolLog "Atualização geral de programas concluída." "SUCCESS"
+    }
+})
+
+# --- ABA 6: REPAROS DO SO ---
+$window.FindName("btnSfcScan").Add_Click({ Start-AsyncAction { Invoke-SfcScan } })
+$window.FindName("btnDismRepair").Add_Click({ Start-AsyncAction { Invoke-DismRepair } })
+$window.FindName("btnDismCleanup").Add_Click({ Start-AsyncAction { Invoke-DismCleanup } })
+$window.FindName("btnRestartSpooler").Add_Click({ Start-AsyncAction { Restart-PrintSpooler } })
+$window.FindName("btnScheduleChkdsk").Add_Click({ Start-AsyncAction { Schedule-ChkdskOnReboot } })
+
+# --- ABA 7: LICENCIAMENTO ---
 $window.FindName("btnCheckWinLicense").Add_Click({ Start-AsyncAction { Get-WindowsActivationStatus } })
 $window.FindName("btnApplyWinKey").Add_Click({
     $key = $window.FindName("txtWinKey").Text
@@ -1614,7 +2135,10 @@ $window.FindName("btnSetKms").Add_Click({
     Start-AsyncAction { Set-EnterpriseKmsServer -KmsHost $using:kmsHost }
 })
 
+# --- LOGS ---
 $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
+Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
+
 $window.ShowDialog() | Out-Null

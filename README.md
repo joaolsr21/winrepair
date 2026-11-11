@@ -1,14 +1,14 @@
 # ⚡ WinRepair & Tweaks Pro
 
-Utilitário profissional e avançado para manutenção, diagnóstico de rede, reparos do sistema, debloat profundo, instalador de softwares e **criador de ISOs personalizadas e otimizadas do Windows 10 e 11**.
+Utilitário all-in-one para Windows 10 e 11, **inspirado e baseado diretamente na arquitetura e nas configurações do Chris Titus Tech (WinUtil)**, trazendo recursos avançados de otimização, perfis com 1 clique, gerenciamento de atualizações, diagnóstico de rede, instalador em lote e o criador de ISO **MicroWin**.
 
-Projetado para execução direta em qualquer computador via PowerShell (`irm | iex`).
+Projetado para execução direta em qualquer máquina através de uma única linha no PowerShell (`irm | iex`).
 
 ---
 
-## 🚀 Como Executar em Qualquer PC
+## 🚀 Como Executar
 
-Abra o **PowerShell como Administrador** e execute:
+Abra o **PowerShell como Administrador** e cole:
 
 ```powershell
 irm https://raw.githubusercontent.com/joaolsr21/winrepair/main/dist/winrepair.ps1 | iex
@@ -16,99 +16,94 @@ irm https://raw.githubusercontent.com/joaolsr21/winrepair/main/dist/winrepair.ps
 
 ---
 
-## 🛠️ O que há de novo nesta versão Pro
+## 🏆 Comparativo e Funcionalidades (Estilo Chris Titus WinUtil)
 
-### 🌐 1. Rede, Conectividade & Gaming
-* **Diagnóstico de Qualidade de Rede**: Medição de latência média (ping), perda de pacotes e descoberta de IP público.
-* **Otimizações TCP/IP de Baixa Latência**:
-  * TCP Window Auto-Tuning Normal.
-  * Habilitação de RSS (Receive Side Scaling) para distribuir pacotes de rede entre os núcleos do processador.
-  * Habilitação de ECN (Explicit Congestion Notification).
-  * Remoção do índice de limitação de rede (`NetworkThrottlingIndex = 0xFFFFFFFF`) e redução da latência multimídia (`SystemResponsiveness = 0`).
-* **Seleção de DNS de Alta Performance com 1 Clique**:
-  * **Cloudflare** (`1.1.1.1` / `1.0.0.1`) - Foco em velocidade pura.
-  * **Google** (`8.8.8.8` / `8.8.4.4`) - Confiabilidade global.
-  * **Quad9** (`9.9.9.9`) - Proteção integrada contra phishing e malware.
-  * **AdGuard DNS** (`94.140.14.14`) - Bloqueio de anúncios e rastreadores diretamente na rede.
-  * **Restaurar DHCP** - Retorna ao modo automático do roteador.
-* **Reparos de Rede**: Flush DNS, Renovação de concessão DHCP, Reinício de placas de rede e Reset total da pilha (Winsock, IPv4, IPv6 e Firewall).
+### ⚡ 1. Tweaks & Perfis Recomendados (O Coração da Ferramenta)
+Assim como no WinUtil do Chris Titus, você pode aplicar tudo com **1 clique através de perfis pré-configurados** ou marcar individualmente os tweaks que desejar:
 
----
+* **Perfis com 1 Clique:**
+  * 🖥️ **Perfil Desktop (PC de Mesa)**: Cria Ponto de Restauração, limpa temporários, desativa telemetria e Bing, desativa GameDVR, desativa hibernação (liberando gigabytes do disco C:), coloca serviços secundários em manual, ativa o plano de energia *Desempenho Máximo*, exibe extensões de arquivo e abre o Explorer em *Este Computador*.
+  * 💻 **Perfil Notebook / Laptop**: Aplica os mesmos ganhos de desempenho do desktop, porém **mantém a hibernação ativa** para garantir a segurança da bateria ao fechar a tampa.
+  * 🎮 **Perfil Gamer Extremo**: Otimizações adicionais de baixa latência TCP, desativação de aceleração de mouse (mira 1:1), prioridade máxima de CPU para jogos e latência de multimídia zerada (`SystemResponsiveness = 0`).
+  * 🛡️ **Ponto de Restauração**: Criação automática de ponto de restauração antes de modificar o sistema.
 
-### ⚡ 2. Otimizações, Desempenho & Debloat
-* **Desempenho Extremo**:
-  * Desbloqueio e ativação do plano oculto da Microsoft **"Desempenho Máximo" (Ultimate Performance)**.
-  * Desativação de gravação em segundo plano do **GameDVR** (elimina quedas de FPS e atraso de entrada em jogos).
-  * Redução do tempo de resposta de menus suspensos (`MenuShowDelay = 10ms`) e otimização do escalonador de prioridade de CPU para programas em primeiro plano.
-* **Debloat Profundo e Privacidade**:
-  * Remoção em lote de bloatwares e aplicativos inúteis pré-instalados pela Microsoft (News, Weather, Solitaire, Clipchamp, Xbox gaming overlays, apps patrocinados).
-  * Desativação de serviços e tarefas agendadas de telemetria e diagnóstico (`DiagTrack`, `dmwappushservice`, CEIP).
-  * Desativação de pesquisas da Web com o Bing no Menu Iniciar e bloqueio de sugestões/anúncios de aplicativos no sistema.
-* **Armazenamento**:
-  * Limpeza profunda de temporários de sistema e usuário, logs de travamento, caches de miniaturas e esvaziamento da lixeira.
-  * Reset limpo do cache corrompido do Windows Update (`SoftwareDistribution`).
-  * Envio de comando TRIM para todos os SSDs.
-  * Ativação e desativação de hibernação para liberar espaço no disco C: equivalente à quantidade de memória RAM instalada.
+* **Tweaks Granulares Selecionáveis:**
+  * **Essenciais & Desempenho**: Limpeza de temporários, Telemetria & CEIP desativados, Bing Search desativado, GameDVR desativado, Serviços pesados em manual, Desempenho Máximo, Hibernação ligada/desligada, MenuShowDelay (10ms), TRIM em SSDs.
+  * **Interface & Usabilidade**: Extensões de arquivos visíveis, Arquivos ocultos visíveis, Explorer abre em *Este Computador*, Tema Escuro global (Dark Mode), Aceleração do mouse desativada, Remoção de Widgets/Copilot/Chat da barra de tarefas do Win11, Adicionar "Take Ownership" ao botão direito, Desinstalação completa e purga do OneDrive.
+  * **Rede & TCP Gaming**: TCP Window Auto-Tuning, RSS (Receive Side Scaling), ECN, Flush DNS, Renovação DHCP e Reset total da pilha.
 
 ---
 
-### 🛠️ 3. Reparos do Sistema Operacional
-* **SFC (/scannow)**: Verificação e restauração de arquivos essenciais do sistema corrompidos.
-* **DISM (/RestoreHealth)**: Reparo avançado da imagem do Windows utilizando fontes oficiais.
-* **Limpeza do WinSxS (/StartComponentCleanup /ResetBase)**: Eliminação de versões obsoletas de atualizações para recuperar espaço em disco.
-* **Destravar Spooler de Impressão**: Limpa a fila de arquivos travados em disco e reinicia o serviço.
-* **Agendamento de CHKDSK**: Programa varredura e correção de setores na inicialização.
+### ⚙️ 2. Configurações & Windows Update (Aba "Recursos & Updates")
+Diretamente baseado nas abas *Config* e *Updates* do Chris Titus:
+* **Gerenciamento do Windows Update**:
+  * 🛡️ **Modo Recomendado (Segurança Estável)**: Atrasa atualizações instáveis de recursos por 1 ano (365 dias), recebe atualizações de segurança cumulativas com 4 dias de tolerância e **bloqueia reinicializações forçadas** enquanto o computador estiver em uso.
+  * 🔄 **Restaurar Padrão da Microsoft**: Reverte as políticas de atualização para o padrão de fábrica.
+  * ⏸️ **Pausar Atualizações (Até 2042)**: Congela temporariamente as atualizações automáticas.
+* **Recursos Opcionais do Windows com 1 Clique**:
+  * Ativar **WSL 2** (Windows Subsystem for Linux + Virtual Machine Platform).
+  * Ativar **Windows Sandbox** (Área Restrita do Windows).
+  * Ativar **Hyper-V** (Virtualização nativa da Microsoft).
+  * Ativar **.NET Framework 3.5** (necessário para programas e jogos legados).
 
 ---
 
-### 💿 4. Criador Interativo de ISO Otimizada (Win 10/11)
-Não precisa digitar caminhos complicados:
-1. **Interface Visual**: Botão *"Procurar ISO..."* para selecionar sua ISO oficial do Windows 10 ou 11.
-2. **Análise de Edições**: Detecta e lista as edições disponíveis na imagem (`install.wim` ou `install.esd`).
-3. **Checkboxes de Otimização Direta na ISO**:
-   * ✅ **Bypass Requisitos Win 11**: Contorna verificações de TPM 2.0, Secure Boot, memória RAM e processadores não suportados.
-   * ✅ **Bypass Conta Microsoft (BypassNRO)**: Permite a criação de conta de usuário local e offline logo no primeiro boot (OOBE).
-   * ✅ **Desativar BitLocker Automático**: Impede que o instalador criptografe o disco silenciosamente sem o seu consentimento.
-   * ✅ **Debloat na Raiz**: Remove pacotes AppX inúteis direto na imagem para que a instalação já nasça limpa.
-   * ✅ **Injetar autounattend.xml**: Pula telas de diagnóstico, aceitação de termos repetitivos e telemetria no primeiro boot.
-4. **Geração Automatizada**: Pipeline completo em segundo plano com logs ao vivo de cada etapa!
+### 💿 3. MicroWin (Criador de ISO Modificada Win 10/11)
+Inspirado na funcionalidade *MicroWin* do Chris Titus para gerar ISOs ultraleves e despoluídas:
+* Seleção visual da ISO oficial via botão nativo *"Procurar ISO..."*.
+* Identificação automática das edições contidas no `install.wim` ou `install.esd`.
+* **Modificações Injetadas na ISO**:
+  * ✅ **Bypass Hardware Win 11**: Remove checagem de TPM 2.0, Secure Boot, memória RAM e CPUs não suportadas.
+  * ✅ **Bypass Conta Microsoft (BypassNRO)**: Permite instalar o Windows e criar uma conta local sem conexão à internet.
+  * ✅ **Desativar BitLocker Automático**: Impede o bloqueio e criptografia involuntária do drive.
+  * ✅ **Debloat na Raiz**: Elimina bloatwares da Microsoft Store antes mesmo da primeira inicialização.
+  * ✅ **Injetar autounattend.xml**: Instalação desacompanhada sem telas de termos, diagnóstico e publicidade.
 
 ---
 
-### 📦 5. Instalador de Softwares em Lote (Winget)
-Instalação 100% silenciosa dos principais programas essenciais para formatar e entregar o PC pronto:
-* **Navegadores**: Google Chrome, Mozilla Firefox, Brave.
-* **Utilitários**: 7-Zip, Notepad++, AnyDesk, Microsoft PowerToys.
-* **Mídia & Dev/Jogos**: VLC Media Player, Visual Studio Code, Steam, Discord.
+### 📦 4. Instalador de Softwares em Lote (Winget)
+Assim como na aba *Install* do WinUtil:
+* Seleção por caixas dos softwares mais populares (Chrome, Firefox, Brave, 7-Zip, Notepad++, AnyDesk, PowerToys, VLC, VS Code, Steam, Discord).
+* Botão **"Atualizar Todos os Apps (`winget upgrade --all`)"** para manter o computador 100% atualizado com 1 clique.
 
 ---
 
-### 🔑 6. Gestão de Licenciamento (Windows e Office)
-* Consulta ao vivo do status de ativação genuína via WMI e `slmgr.vbs`.
-* Instalação e validação de chaves oficiais para Windows e pacotes do Microsoft Office.
-* Apontamento de servidores KMS corporativos/institucionais oficiais.
+### 🌐 5. Rede, Conectividade & Diagnóstico
+* Teste de latência média e perda de pacotes em tempo real.
+* Troca instantânea de DNS: **Cloudflare (1.1.1.1)**, **Google (8.8.8.8)**, **Quad9 (9.9.9.9)**, **AdGuard DNS (Anti-Anúncios)** e **DHCP**.
 
 ---
 
-## 📁 Estrutura do Código
+### 🛠️ 6. Reparos do Sistema & Licenciamento
+* Reparo de integridade com `sfc /scannow` e `DISM /RestoreHealth`.
+* Limpeza profunda do WinSxS (`/StartComponentCleanup /ResetBase`).
+* Destravamento do Spooler de impressão e agendamento de `CHKDSK`.
+* Ativação e gestão oficial de chaves para Windows, Office e apontamento de servidores KMS corporativos.
+
+---
+
+## 📁 Estrutura do Repositório
 
 ```text
 ├── src/
 │   ├── core/
 │   │   ├── elevation.ps1           # Elevação segura sem disparar falso positivo
-│   │   └── logger.ps1              # Logger com saída no console e GUI WPF
+│   │   └── logger.ps1              # Logger console + UI WPF
 │   ├── modules/
 │   │   ├── network.ps1             # Diagnóstico de rede, TCP gaming tweaks e DNS
-│   │   ├── optimizer.ps1           # Debloat, Ultimate Performance, temporários e TRIM
+│   │   ├── optimizer.ps1           # Perfis 1-Clique (Desktop/Laptop/Gamer), Debloat e Serviços
+│   │   ├── tweaks_system.ps1       # Usabilidade (Extensões, Dark Mode, Mouse 1:1, Tarefas, OneDrive)
+│   │   ├── windows_features.ps1    # Recursos opcionais (WSL 2, Sandbox, Hyper-V, .NET 3.5)
+│   │   ├── windows_update.ps1      # Modo Recomendado, Padrão e Pausa até 2042
 │   │   ├── system_repair.ps1       # SFC, DISM, WinSxS e Spooler
-│   │   ├── iso_builder.ps1         # Pipeline completo de customização de ISO
-│   │   ├── software_installer.ps1  # Instalador silencioso via Winget
+│   │   ├── iso_builder.ps1         # Pipeline MicroWin completo
+│   │   ├── software_installer.ps1  # Instalador Winget e atualização geral
 │   │   └── licensing.ps1           # Ativação oficial Windows e Office
 │   ├── ui/
-│   │   └── app.xaml                # Interface moderna rica em WPF com suporte a emoji
+│   │   └── app.xaml                # Interface WPF moderna (Catppuccin Dark)
 │   └── main.ps1                    # Ponto de entrada modular
 ├── dist/
-│   └── winrepair.ps1               # Pacote único compilado UTF-8 com BOM
+│   └── winrepair.ps1               # Pacote único compilado (UTF-8 com BOM)
 ├── build.ps1                       # Compilador automatizado
 └── README.md
 ```

@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Script Principal: WinRepair & Tweaks Pro
+# Script Principal: WinRepair & Tweaks Pro (Estilo Chris Titus WinUtil)
 # ==============================================================================
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -17,12 +17,15 @@ $srcCore = Join-Path $scriptRoot "core"
 $srcModules = Join-Path $scriptRoot "modules"
 $uiPath = Join-Path $scriptRoot "ui\app.xaml"
 
-# Importar scripts auxiliares se estiver em desenvolvimento modular
+# Importar scripts auxiliares modulares
 if (Test-Path $srcCore) {
     . (Join-Path $srcCore "elevation.ps1")
     . (Join-Path $srcCore "logger.ps1")
     . (Join-Path $srcModules "network.ps1")
     . (Join-Path $srcModules "optimizer.ps1")
+    . (Join-Path $srcModules "tweaks_system.ps1")
+    . (Join-Path $srcModules "windows_features.ps1")
+    . (Join-Path $srcModules "windows_update.ps1")
     . (Join-Path $srcModules "system_repair.ps1")
     . (Join-Path $srcModules "iso_builder.ps1")
     . (Join-Path $srcModules "software_installer.ps1")
@@ -35,10 +38,11 @@ if (-not (Test-IsAdmin)) {
     return
 }
 
-# 2. Carregar assemblies do WPF
+# 2. Carregar assemblies do WPF e Forms
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
+Add-Type -AssemblyName System.Windows.Forms
 
 # 3. Carregar arquivo XAML com codificação UTF-8 estrita
 if (-not (Test-Path $uiPath)) {
@@ -79,13 +83,76 @@ function Start-AsyncAction {
 # VINCULAÇÃO DE EVENTOS (BINDS)
 # ==============================================================================
 
-# --- ABA 1: REDE ---
+# --- PERFIS PRONTOS (1 CLIQUE) ---
+$window.FindName("btnProfileDesktop").Add_Click({ Start-AsyncAction { Apply-DesktopRecommendedProfile } })
+$window.FindName("btnProfileLaptop").Add_Click({ Start-AsyncAction { Apply-LaptopRecommendedProfile } })
+$window.FindName("btnProfileGamer").Add_Click({ Start-AsyncAction { Apply-GamerUltimateProfile } })
+$window.FindName("btnCreateRestorePoint").Add_Click({ Start-AsyncAction { Set-RestorePoint } })
+
+# --- APLICAR TWEAKS SELECIONADOS ---
+$window.FindName("btnApplySelectedTweaks").Add_Click({
+    $tweaks = @{
+        CleanTemp           = [bool]$window.FindName("chkCleanTemp").IsChecked
+        DisableTelemetry    = [bool]$window.FindName("chkDisableTelemetry").IsChecked
+        DisableBingSearch   = [bool]$window.FindName("chkDisableBingSearch").IsChecked
+        DisableGameDvr      = [bool]$window.FindName("chkDisableGameDvr").IsChecked
+        OptimizeServices    = [bool]$window.FindName("chkOptimizeServices").IsChecked
+        UltimatePower       = [bool]$window.FindName("chkUltimatePower").IsChecked
+        DisableHibernation  = [bool]$window.FindName("chkDisableHibernation").IsChecked
+        FastVisuals         = [bool]$window.FindName("chkFastVisuals").IsChecked
+        SsdTrim             = [bool]$window.FindName("chkSsdTrim").IsChecked
+
+        ShowFileExt         = [bool]$window.FindName("chkShowFileExt").IsChecked
+        ShowHiddenFiles     = [bool]$window.FindName("chkShowHiddenFiles").IsChecked
+        ExplorerThisPc      = [bool]$window.FindName("chkExplorerThisPc").IsChecked
+        DarkMode            = [bool]$window.FindName("chkDarkMode").IsChecked
+        DisableMouseAccel   = [bool]$window.FindName("chkDisableMouseAccel").IsChecked
+        CleanWin11Taskbar   = [bool]$window.FindName("chkCleanWin11Taskbar").IsChecked
+        TakeOwnership       = [bool]$window.FindName("chkTakeOwnership").IsChecked
+        UninstallOneDrive   = [bool]$window.FindName("chkUninstallOneDrive").IsChecked
+
+        OptimizeTcp         = [bool]$window.FindName("chkOptimizeTcp").IsChecked
+        FlushDns            = [bool]$window.FindName("chkFlushDns").IsChecked
+        RenewDhcp           = [bool]$window.FindName("chkRenewDhcp").IsChecked
+        ResetNetwork        = [bool]$window.FindName("chkResetNetwork").IsChecked
+    }
+
+    Start-AsyncAction {
+        Write-ToolLog "=== INICIANDO APLICAÇÃO DOS TWEAKS SELECIONADOS ===" "INFO"
+
+        if ($using:tweaks.CleanTemp) { Clear-TempFiles }
+        if ($using:tweaks.DisableTelemetry) { Optimize-WindowsTelemetryAndPrivacy }
+        if ($using:tweaks.DisableBingSearch) { Disable-StartMenuAdsAndBingSearch }
+        if ($using:tweaks.DisableGameDvr) { Disable-GameDvrAndBackgroundRecording }
+        if ($using:tweaks.OptimizeServices) { Optimize-WindowsServicesManual }
+        if ($using:tweaks.UltimatePower) { Enable-UltimatePerformancePowerPlan }
+        if ($using:tweaks.DisableHibernation) { Set-HibernationState -Enable $false }
+        if ($using:tweaks.FastVisuals) { Optimize-SystemResponsivenessAndVisuals }
+        if ($using:tweaks.SsdTrim) { Optimize-SsdTrim }
+
+        if ($using:tweaks.ShowFileExt) { Set-ShowFileExtensions -Enable $true }
+        if ($using:tweaks.ShowHiddenFiles) { Set-ShowHiddenFiles -Enable $true }
+        if ($using:tweaks.ExplorerThisPc) { Set-ExplorerOpenToThisPC }
+        if ($using:tweaks.DarkMode) { Set-SystemDarkMode -Enable $true }
+        if ($using:tweaks.DisableMouseAccel) { Disable-MouseAcceleration }
+        if ($using:tweaks.CleanWin11Taskbar) { Disable-Win11TaskbarJunk }
+        if ($using:tweaks.TakeOwnership) { Add-TakeOwnershipContextMenu }
+        if ($using:tweaks.UninstallOneDrive) { Uninstall-OneDrivePurge }
+
+        if ($using:tweaks.OptimizeTcp) { Optimize-TcpLatencyAndThroughput }
+        if ($using:tweaks.FlushDns) { Invoke-FlushDns }
+        if ($using:tweaks.RenewDhcp) { Invoke-RenewDhcp }
+        if ($using:tweaks.ResetNetwork) { Invoke-ResetNetworkStack }
+
+        Write-ToolLog "=== TODOS OS TWEAKS SELECIONADOS FORAM APLICADOS COM SUCESSO! ===" "SUCCESS"
+    }
+})
+
+# --- ABA 2: REDE ---
 $window.FindName("btnTestNetwork").Add_Click({ Start-AsyncAction { Test-NetworkQuality } })
-$window.FindName("btnFlushDns").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
-$window.FindName("btnRenewDhcp").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
+$window.FindName("btnFlushDnsTab").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
+$window.FindName("btnRenewDhcpTab").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
 $window.FindName("btnRestartAdapters").Add_Click({ Start-AsyncAction { Restart-NetworkAdapters } })
-$window.FindName("btnOptimizeTcp").Add_Click({ Start-AsyncAction { Optimize-TcpLatencyAndThroughput } })
-$window.FindName("btnResetNetwork").Add_Click({ Start-AsyncAction { Invoke-ResetNetworkStack } })
 
 $window.FindName("btnDnsCloudflare").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Cloudflare" } })
 $window.FindName("btnDnsGoogle").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Google" } })
@@ -93,27 +160,17 @@ $window.FindName("btnDnsQuad9").Add_Click({ Start-AsyncAction { Set-QuickDnsProv
 $window.FindName("btnDnsAdGuard").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "AdGuard" } })
 $window.FindName("btnDnsDhcp").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "DHCP" } })
 
-# --- ABA 2: OTIMIZAÇÃO & DEBLOAT ---
-$window.FindName("btnClearTemp").Add_Click({ Start-AsyncAction { Clear-TempFiles } })
-$window.FindName("btnClearWuCache").Add_Click({ Start-AsyncAction { Clear-WindowsUpdateCache } })
-$window.FindName("btnSsdTrim").Add_Click({ Start-AsyncAction { Optimize-SsdTrim } })
-$window.FindName("btnUltimatePower").Add_Click({ Start-AsyncAction { Enable-UltimatePerformancePowerPlan } })
-$window.FindName("btnDisableGameDvr").Add_Click({ Start-AsyncAction { Disable-GameDvrAndBackgroundRecording } })
-$window.FindName("btnFastVisuals").Add_Click({ Start-AsyncAction { Optimize-SystemResponsivenessAndVisuals } })
-$window.FindName("btnDisableHibernation").Add_Click({ Start-AsyncAction { Set-HibernationState -Enable $false } })
-$window.FindName("btnEnableHibernation").Add_Click({ Start-AsyncAction { Set-HibernationState -Enable $true } })
-$window.FindName("btnDebloatApps").Add_Click({ Start-AsyncAction { Invoke-SystemDebloatAppx } })
-$window.FindName("btnOptimizeTelemetry").Add_Click({ Start-AsyncAction { Optimize-WindowsTelemetryAndPrivacy } })
-$window.FindName("btnDisableStartAds").Add_Click({ Start-AsyncAction { Disable-StartMenuAdsAndBingSearch } })
+# --- ABA 3: RECURSOS & UPDATES ---
+$window.FindName("btnWuRecommended").Add_Click({ Start-AsyncAction { Set-WindowsUpdateRecommended } })
+$window.FindName("btnWuDefault").Add_Click({ Start-AsyncAction { Reset-WindowsUpdateDefault } })
+$window.FindName("btnWuPause").Add_Click({ Start-AsyncAction { Pause-WindowsUpdateExtended } })
 
-# --- ABA 3: REPARO DO SISTEMA ---
-$window.FindName("btnSfcScan").Add_Click({ Start-AsyncAction { Invoke-SfcScan } })
-$window.FindName("btnDismRepair").Add_Click({ Start-AsyncAction { Invoke-DismRepair } })
-$window.FindName("btnDismCleanup").Add_Click({ Start-AsyncAction { Invoke-DismCleanup } })
-$window.FindName("btnRestartSpooler").Add_Click({ Start-AsyncAction { Restart-PrintSpooler } })
-$window.FindName("btnScheduleChkdsk").Add_Click({ Start-AsyncAction { Schedule-ChkdskOnReboot } })
+$window.FindName("btnEnableWsl").Add_Click({ Start-AsyncAction { Enable-WslFeature } })
+$window.FindName("btnEnableSandbox").Add_Click({ Start-AsyncAction { Enable-WindowsSandbox } })
+$window.FindName("btnEnableHyperV").Add_Click({ Start-AsyncAction { Enable-HyperVFeature } })
+$window.FindName("btnEnableNet35").Add_Click({ Start-AsyncAction { Enable-NetFramework35 } })
 
-# --- ABA 4: CRIADOR DE ISO CUSTOMIZADA ---
+# --- ABA 4: MICROWIN / CRIADOR DE ISO ---
 $window.FindName("btnBrowseIso").Add_Click({
     $selected = Select-IsoFileDialog
     if ($selected) {
@@ -133,12 +190,10 @@ $window.FindName("btnBrowseOutputDir").Add_Click({
 $window.FindName("btnInspectIso").Add_Click({
     $isoPath = $window.FindName("txtIsoPath").Text
     if (-not $isoPath) {
-        Write-ToolLog "Por favor, selecione primeiro uma imagem ISO." "WARN"
+        Write-ToolLog "Por favor, selecione primeiro um arquivo ISO." "WARN"
         return
     }
-    Start-AsyncAction {
-        Inspect-IsoEditions -IsoPath $using:isoPath
-    }
+    Start-AsyncAction { Inspect-IsoEditions -IsoPath `$using:isoPath }
 })
 
 $window.FindName("btnBuildCustomIso").Add_Click({
@@ -205,7 +260,22 @@ $window.FindName("btnInstallSelectedSoftware").Add_Click({
     }
 })
 
-# --- ABA 6: LICENCIAMENTO ---
+$window.FindName("btnUpgradeAllSoftware").Add_Click({
+    Start-AsyncAction {
+        Write-ToolLog "Iniciando atualização de todos os programas instalados via Winget..." "INFO"
+        Start-Process winget.exe -ArgumentList "upgrade --all --silent --accept-source-agreements --accept-package-agreements" -NoNewWindow -Wait
+        Write-ToolLog "Atualização geral concluída." "SUCCESS"
+    }
+})
+
+# --- ABA 6: REPAROS DO SO ---
+$window.FindName("btnSfcScan").Add_Click({ Start-AsyncAction { Invoke-SfcScan } })
+$window.FindName("btnDismRepair").Add_Click({ Start-AsyncAction { Invoke-DismRepair } })
+$window.FindName("btnDismCleanup").Add_Click({ Start-AsyncAction { Invoke-DismCleanup } })
+$window.FindName("btnRestartSpooler").Add_Click({ Start-AsyncAction { Restart-PrintSpooler } })
+$window.FindName("btnScheduleChkdsk").Add_Click({ Start-AsyncAction { Schedule-ChkdskOnReboot } })
+
+# --- ABA 7: LICENCIAMENTO ---
 $window.FindName("btnCheckWinLicense").Add_Click({ Start-AsyncAction { Get-WindowsActivationStatus } })
 $window.FindName("btnApplyWinKey").Add_Click({
     $key = $window.FindName("txtWinKey").Text
@@ -226,10 +296,10 @@ $window.FindName("btnSetKms").Add_Click({
     Start-AsyncAction { Set-EnterpriseKmsServer -KmsHost $using:kmsHost }
 })
 
-# Logs
+# --- LOGS ---
 $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
-Write-ToolLog "Selecione uma das abas acima para iniciar otimizações ou reparos." "INFO"
+Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
 
 $window.ShowDialog() | Out-Null

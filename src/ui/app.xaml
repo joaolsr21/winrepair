@@ -1,7 +1,7 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WinRepair &amp; Tweaks Utility"
-        Height="780" Width="1020"
+        Title="WinRepair &amp; Tweaks Pro"
+        Height="820" Width="1060"
         WindowStartupLocation="CenterScreen"
         Background="#181825"
         Foreground="#CDD6F4"
@@ -13,18 +13,18 @@
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="BorderBrush" Value="#45475A"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Margin" Value="3"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6"
+                                CornerRadius="5"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -46,7 +46,7 @@
             <Setter Property="Foreground" Value="#A6ADC8"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Background" Value="#1E1E2E"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -74,15 +74,15 @@
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="BorderBrush" Value="#45475A"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="CaretBrush" Value="#89B4FA"/>
         </Style>
 
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="#CDD6F4"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Margin" Value="6,4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="4,3"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -91,20 +91,20 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="#89B4FA"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="4,4,4,10"/>
-            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="3,3,3,8"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
     </Window.Resources>
 
-    <Grid Margin="14">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="170"/>
+            <RowDefinition Height="160"/>
         </Grid.RowDefinitions>
 
         <!-- Cabeçalho Principal -->
-        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="14,10" Margin="0,0,0,10" BorderBrush="#313244" BorderThickness="1">
+        <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="14,10" Margin="0,0,0,8" BorderBrush="#313244" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -112,41 +112,107 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Central Profissional de Otimização, Diagnóstico de Rede, Reparos e Criação de ISO" FontSize="12" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimizações, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Name="txtSystemInfo" Text="Identificando sistema..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
+                    <TextBlock Name="txtSystemInfo" Text="Identificando máquina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Abas Centrais -->
+        <!-- Abas Principais -->
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             
-            <!-- ABA 1: REDE & INTERNET -->
-            <TabItem Header="🌐 Rede &amp; Internet">
+            <!-- ABA 1: TWEAKS & PERFIS (ESTILO WINUTIL TWEAKS) -->
+            <TabItem Header="⚡ Tweaks &amp; Otimização">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Diagnóstico e Teste de Conexão">
+                    <StackPanel Margin="8">
+                        <!-- Barra de Perfis com 1 Clique -->
+                        <Border Background="#24273A" CornerRadius="6" Padding="10" Margin="2,0,2,8" BorderBrush="#45475A" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Perfis Recomendados (1 Clique):" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <Button Name="btnProfileDesktop" Content="🖥️ Perfil Desktop" Padding="12,6" Background="#313244" Foreground="#A6E3A1"/>
+                                    <Button Name="btnProfileLaptop" Content="💻 Perfil Notebook" Padding="12,6" Background="#313244" Foreground="#89B4FA"/>
+                                    <Button Name="btnProfileGamer" Content="🎮 Perfil Gamer Extremo" Padding="12,6" Background="#313244" Foreground="#F38BA8"/>
+                                </WrapPanel>
+                                <Button Name="btnCreateRestorePoint" Grid.Column="2" Content="🛡️ Criar Ponto de Restauração" Padding="10,6" Background="#45475A"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Grade de Tweaks Granulares -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Coluna 1: Essenciais & Desempenho -->
+                            <GroupBox Grid.Column="0" Header="Essenciais &amp; Desempenho">
+                                <StackPanel>
+                                    <CheckBox Name="chkCleanTemp" Content="Limpar Arquivos Temporários" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableTelemetry" Content="Desativar Telemetria &amp; CEIP" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableBingSearch" Content="Desativar Bing no Menu Iniciar" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableGameDvr" Content="Desativar GameDVR (Input Lag)" IsChecked="True"/>
+                                    <CheckBox Name="chkOptimizeServices" Content="Serviços Pesados em Manual" IsChecked="True"/>
+                                    <CheckBox Name="chkUltimatePower" Content="Plano 'Desempenho Máximo'" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableHibernation" Content="Desativar Hibernação (Desktop)" IsChecked="False"/>
+                                    <CheckBox Name="chkFastVisuals" Content="Acelerar Menus (MenuShowDelay)" IsChecked="True"/>
+                                    <CheckBox Name="chkSsdTrim" Content="Otimizar SSDs (Executar TRIM)" IsChecked="True"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Coluna 2: Interface & Usabilidade -->
+                            <GroupBox Grid.Column="1" Header="Interface &amp; Usabilidade">
+                                <StackPanel>
+                                    <CheckBox Name="chkShowFileExt" Content="Mostrar Extensões de Arquivo" IsChecked="True"/>
+                                    <CheckBox Name="chkShowHiddenFiles" Content="Mostrar Arquivos Ocultos" IsChecked="True"/>
+                                    <CheckBox Name="chkExplorerThisPc" Content="Explorer abre em 'Este Computador'" IsChecked="True"/>
+                                    <CheckBox Name="chkDarkMode" Content="Ativar Tema Escuro (Dark Mode)" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableMouseAccel" Content="Desativar Aceleração do Mouse (1:1)" IsChecked="True"/>
+                                    <CheckBox Name="chkCleanWin11Taskbar" Content="Limpar Barra Tarefas (Widgets/Copilot)" IsChecked="True"/>
+                                    <CheckBox Name="chkTakeOwnership" Content="Adicionar 'Take Ownership' no Menu" IsChecked="True"/>
+                                    <CheckBox Name="chkUninstallOneDrive" Content="Desinstalar e Purgar OneDrive" IsChecked="False"/>
+                                </StackPanel>
+                            </GroupBox>
+
+                            <!-- Coluna 3: Rede & TCP Gaming -->
+                            <GroupBox Grid.Column="2" Header="Rede &amp; Conectividade">
+                                <StackPanel>
+                                    <CheckBox Name="chkOptimizeTcp" Content="Otimizar Latência TCP (AutoTune, RSS)" IsChecked="True"/>
+                                    <CheckBox Name="chkFlushDns" Content="Limpar Cache DNS" IsChecked="True"/>
+                                    <CheckBox Name="chkRenewDhcp" Content="Renovar Concessão de IP / DHCP" IsChecked="False"/>
+                                    <CheckBox Name="chkResetNetwork" Content="Redefinir Pilha de Rede Completa" IsChecked="False"/>
+                                </StackPanel>
+                            </GroupBox>
+                        </Grid>
+
+                        <!-- Botão Aplicar Selecionados -->
+                        <Button Name="btnApplySelectedTweaks" Content="🚀 Aplicar Todos os Tweaks Selecionados" Height="42" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,8,2,2"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ABA 2: REDE & DNS -->
+            <TabItem Header="🌐 Rede &amp; Conectividade">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Diagnóstico da Conexão">
                             <WrapPanel>
-                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="38"/>
-                                <Button Name="btnFlushDns" Content="Limpar Cache DNS" Width="180" Height="38"/>
-                                <Button Name="btnRenewDhcp" Content="Renovar IP / DHCP" Width="180" Height="38"/>
-                                <Button Name="btnRestartAdapters" Content="Reiniciar Adaptadores de Rede" Width="220" Height="38"/>
+                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="36"/>
+                                <Button Name="btnFlushDnsTab" Content="Limpar Cache DNS" Width="180" Height="36"/>
+                                <Button Name="btnRenewDhcpTab" Content="Renovar IP / DHCP" Width="180" Height="36"/>
+                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="210" Height="36"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Otimização Avançada TCP/IP (Baixa Latência &amp; Gaming)">
-                            <StackPanel>
-                                <TextBlock Text="Ajusta o TCP Auto-Tuning, RSS (Receive Side Scaling), ECN e remove o índice de limitação de rede multimídia." FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,8"/>
-                                <WrapPanel>
-                                    <Button Name="btnOptimizeTcp" Content="🚀 Aplicar Otimizações de Latência TCP" Width="280" Height="38"/>
-                                    <Button Name="btnResetNetwork" Content="⚠️ Redefinir Pilha Completa (Winsock/IP/Firewall)" Width="340" Height="38"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Troca Rápida de Servidores DNS">
+                        <GroupBox Header="Troca Rápida de DNS">
                             <WrapPanel>
                                 <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="210" Height="36"/>
                                 <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confiável" Width="210" Height="36"/>
@@ -159,61 +225,38 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 2: OTIMIZAÇÕES & DEBLOAT -->
-            <TabItem Header="⚡ Otimização &amp; Debloat">
+            <!-- ABA 3: RECURSOS & UPDATES (ESTILO WINUTIL CONFIG & UPDATES) -->
+            <TabItem Header="⚙️ Recursos &amp; Updates">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Limpeza e Armazenamento">
-                            <WrapPanel>
-                                <Button Name="btnClearTemp" Content="Limpeza Profunda de Temporários &amp; Lixeira" Width="280" Height="38"/>
-                                <Button Name="btnClearWuCache" Content="Limpar Cache Corrompido do Windows Update" Width="290" Height="38"/>
-                                <Button Name="btnSsdTrim" Content="Otimizar SSDs (Executar TRIM)" Width="230" Height="38"/>
-                            </WrapPanel>
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Gerenciamento do Windows Update (Estilo Chris Titus)">
+                            <StackPanel>
+                                <TextBlock Text="Controle como o Windows Update lida com atualizações para evitar travamentos e reinicializações forçadas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
+                                <WrapPanel>
+                                    <Button Name="btnWuRecommended" Content="🛡️ Modo Recomendado (Segurança Estável &amp; Sem Reinício Forçado)" Width="460" Height="36"/>
+                                    <Button Name="btnWuDefault" Content="🔄 Restaurar Padrão da Microsoft" Width="240" Height="36"/>
+                                    <Button Name="btnWuPause" Content="⏸️ Pausar Atualizações (Até 2042)" Width="230" Height="36"/>
+                                </WrapPanel>
+                            </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Desempenho do Sistema &amp; Jogos">
+                        <GroupBox Header="Recursos Opcionais do Windows (Ativação com 1 Clique)">
                             <WrapPanel>
-                                <Button Name="btnUltimatePower" Content="🔥 Ativar Plano 'Desempenho Máximo'" Width="270" Height="38"/>
-                                <Button Name="btnDisableGameDvr" Content="🎮 Desativar GameDVR (Reduz Input Lag)" Width="270" Height="38"/>
-                                <Button Name="btnFastVisuals" Content="⚡ Acelerar Resposta de Menus e Janelas" Width="270" Height="38"/>
-                                <Button Name="btnDisableHibernation" Content="Desativar Hibernação (Liberar GBs)" Width="240" Height="38"/>
-                                <Button Name="btnEnableHibernation" Content="Ativar Hibernação" Width="160" Height="38"/>
-                            </WrapPanel>
-                        </GroupBox>
-
-                        <GroupBox Header="Privacidade e Remoção de Bloatware">
-                            <WrapPanel>
-                                <Button Name="btnDebloatApps" Content="🗑️ Remover Bloatware e Apps Inúteis (AppX)" Width="310" Height="38"/>
-                                <Button Name="btnOptimizeTelemetry" Content="🛡️ Desativar Telemetria Profunda e Rastreamento" Width="320" Height="38"/>
-                                <Button Name="btnDisableStartAds" Content="🚫 Remover Bing e Anúncios do Menu Iniciar" Width="300" Height="38"/>
+                                <Button Name="btnEnableWsl" Content="Ativar WSL 2 (Subsistema Linux)" Width="240" Height="36"/>
+                                <Button Name="btnEnableSandbox" Content="Ativar Windows Sandbox" Width="210" Height="36"/>
+                                <Button Name="btnEnableHyperV" Content="Ativar Hyper-V" Width="180" Height="36"/>
+                                <Button Name="btnEnableNet35" Content="Ativar .NET Framework 3.5" Width="220" Height="36"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 3: REPARO DO SISTEMA -->
-            <TabItem Header="🛠️ Reparo do Sistema">
+            <!-- ABA 4: MICROWIN / CRIADOR DE ISO -->
+            <TabItem Header="💿 MicroWin (Criador de ISO)">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Integridade de Arquivos e Componentes">
-                            <WrapPanel>
-                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="38"/>
-                                <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="260" Height="38"/>
-                                <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="250" Height="38"/>
-                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="38"/>
-                                <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="38"/>
-                            </WrapPanel>
-                        </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- ABA 4: CRIADOR DE ISO CUSTOMIZADA -->
-            <TabItem Header="💿 Criador de ISO (Win 10/11)">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="1. Seleção da Imagem ISO de Origem">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="1. Seleção da Imagem ISO Oficial">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -228,7 +271,7 @@
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="2. Destino da Nova ISO">
+                        <GroupBox Header="2. Destino e Edição">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -246,36 +289,41 @@
                                 <Button Name="btnBrowseOutputDir" Grid.Row="0" Grid.Column="2" Content="Selecionar Pasta..." Width="120" Height="32" Margin="0,0,0,4"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Nome do Arquivo:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                <TextBox Name="txtOutputIsoName" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Text="Windows_Custom_Otimizado.iso"/>
+                                <TextBox Name="txtOutputIsoName" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Text="Windows_MicroWin_Custom.iso"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="Índice da Edição:" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#A6ADC8" Margin="0,0,6,0"/>
                                 <TextBox Name="txtEditionIndex" Grid.Row="1" Grid.Column="3" Text="1" Width="50" HorizontalAlignment="Left"/>
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="3. Otimizações a Injetar Diretamente na Imagem">
+                        <GroupBox Header="3. Modificações MicroWin a Injetar">
                             <StackPanel>
-                                <CheckBox Name="chkIsoBypassHw" Content="Bypass de Requisitos do Windows 11 (Ignorar TPM 2.0, Secure Boot, RAM e CPU)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigatória (Permitir criar Conta Local offline - BypassNRO)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Automática do BitLocker durante a instalação" IsChecked="True"/>
+                                <CheckBox Name="chkIsoBypassHw" Content="Bypass de Requisitos Win 11 (Ignora TPM 2.0, Secure Boot, RAM e CPU)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigatória (Permite criar Conta Local offline - BypassNRO)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Automática do BitLocker no primeiro boot" IsChecked="True"/>
                                 <CheckBox Name="chkIsoDebloat" Content="Remover Bloatware AppX na raiz da imagem (Xbox overlays, Clipchamp, Notícias, Jogos)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas chatas de termos, telemetria e propaganda no primeiro uso)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas de termos, diagnóstico e anúncios no primeiro boot)" IsChecked="True"/>
                             </StackPanel>
                         </GroupBox>
 
-                        <Border Background="#24273A" CornerRadius="6" Padding="12" Margin="4,4,4,8">
-                            <Button Name="btnBuildCustomIso" Content="🚀 Iniciar Criação da ISO Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B"/>
-                        </Border>
+                        <Button Name="btnBuildCustomIso" Content="🚀 Gerar Nova ISO MicroWin Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,4,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 5: SOFTWARES ESSENCIAIS (WINGET) -->
+            <!-- ABA 5: SOFTWARES (WINGET) -->
             <TabItem Header="📦 Softwares">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <TextBlock Text="Selecione os programas que deseja instalar silenciosamente no computador via Winget:" FontSize="12" Foreground="#A6ADC8" Margin="4,0,0,8"/>
-                        
+                    <StackPanel Margin="8">
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Instale ou atualize silenciosamente os softwares essenciais via Winget:" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                            <Button Name="btnUpgradeAllSoftware" Grid.Column="1" Content="🔄 Atualizar Todos os Apps (winget upgrade --all)" Padding="10,5"/>
+                        </Grid>
+
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -300,63 +348,80 @@
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Grid.Column="2" Header="Mídia &amp; Outros">
+                            <GroupBox Grid.Column="2" Header="Mídia &amp; Dev/Jogos">
                                 <StackPanel>
                                     <CheckBox Name="chkSoftwareVlc" Content="VLC Media Player" Tag="VideoLAN.VLC"/>
-                                    <CheckBox Name="chkSoftwareVsCode" Content="VS Code" Tag="Microsoft.VisualStudioCode"/>
+                                    <CheckBox Name="chkSoftwareVsCode" Content="Visual Studio Code" Tag="Microsoft.VisualStudioCode"/>
                                     <CheckBox Name="chkSoftwareSteam" Content="Steam" Tag="Valve.Steam"/>
                                     <CheckBox Name="chkSoftwareDiscord" Content="Discord" Tag="Discord.Discord"/>
                                 </StackPanel>
                             </GroupBox>
                         </Grid>
 
-                        <Button Name="btnInstallSelectedSoftware" Content="Baixar e Instalar Softwares Selecionados" Height="40" Margin="4,10,4,0"/>
+                        <Button Name="btnInstallSelectedSoftware" Content="Baixar e Instalar Softwares Selecionados" Height="38" Margin="2,8,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 6: LICENCIAMENTO -->
+            <!-- ABA 6: REPAROS DO SISTEMA -->
+            <TabItem Header="🛠️ Reparo do SO">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Integridade de Arquivos e Componentes">
+                            <WrapPanel>
+                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="36"/>
+                                <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="260" Height="36"/>
+                                <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="250" Height="36"/>
+                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="36"/>
+                                <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="36"/>
+                            </WrapPanel>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ABA 7: LICENCIAMENTO -->
             <TabItem Header="🔑 Licenciamento">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="10">
-                        <GroupBox Header="Gerenciamento de Licença do Windows">
+                    <StackPanel Margin="8">
+                        <GroupBox Header="Licença do Windows">
                             <StackPanel>
-                                <WrapPanel Margin="0,0,0,8">
-                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="36"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="34"/>
                                 </WrapPanel>
-                                <Grid Margin="0,4">
+                                <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Chave do Windows:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                    <TextBox Name="txtWinKey" Grid.Column="1" Margin="0,0,8,0" Text="" ToolTip="Formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"/>
-                                    <Button Name="btnApplyWinKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="180" Height="34"/>
+                                    <TextBox Name="txtWinKey" Grid.Column="1" Margin="0,0,8,0" Text=""/>
+                                    <Button Name="btnApplyWinKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="170" Height="32"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Gerenciamento de Licença do Microsoft Office">
+                        <GroupBox Header="Licença do Microsoft Office">
                             <StackPanel>
-                                <WrapPanel Margin="0,0,0,8">
-                                    <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="36"/>
+                                <WrapPanel Margin="0,0,0,6">
+                                    <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="34"/>
                                 </WrapPanel>
-                                <Grid Margin="0,4">
+                                <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="130"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Chave do Office:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
-                                    <TextBox Name="txtOfficeKey" Grid.Column="1" Margin="0,0,8,0" Text="" ToolTip="Formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"/>
-                                    <Button Name="btnApplyOfficeKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="180" Height="34"/>
+                                    <TextBox Name="txtOfficeKey" Grid.Column="1" Margin="0,0,8,0" Text=""/>
+                                    <Button Name="btnApplyOfficeKey" Grid.Column="2" Content="Instalar e Ativar Chave" Width="170" Height="32"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Configuração de Servidor KMS Institucional / Corporativo">
-                            <Grid Margin="0,4">
+                        <GroupBox Header="Servidor KMS Institucional">
+                            <Grid Margin="0,2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="130"/>
                                     <ColumnDefinition Width="*"/>
@@ -364,7 +429,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Host KMS Oficial:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtKmsHost" Grid.Column="1" Margin="0,0,8,0" Text="kms.dominio.local"/>
-                                <Button Name="btnSetKms" Grid.Column="2" Content="Configurar Servidor KMS" Width="180" Height="34"/>
+                                <Button Name="btnSetKms" Grid.Column="2" Content="Configurar Servidor KMS" Width="170" Height="32"/>
                             </Grid>
                         </GroupBox>
                     </StackPanel>
@@ -372,21 +437,21 @@
             </TabItem>
         </TabControl>
 
-        <!-- Painel Inferior de Logs em Tempo Real -->
+        <!-- Painel Inferior de Logs -->
         <Border Grid.Row="2" Background="#11111B" CornerRadius="8" Margin="0,8,0,0" BorderBrush="#313244" BorderThickness="1">
-            <Grid Margin="8">
+            <Grid Margin="6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="0,0,0,4">
+                <Grid Grid.Row="0" Margin="0,0,0,2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs em Tempo Real" FontSize="12" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
-                    <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="8,4" FontSize="11" Margin="0"/>
+                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs em Tempo Real" FontSize="11" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                    <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="6,3" FontSize="11" Margin="0"/>
                 </Grid>
 
                 <TextBox Name="txtLog" Grid.Row="1"
