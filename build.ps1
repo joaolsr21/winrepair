@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Script de Build: Empacotador para Execução Única via irm | iex
 # ==============================================================================
 param(
@@ -6,7 +6,7 @@ param(
     [string]$OutputFile = "winrepair.ps1"
 )
 
-Write-Host "[*] Iniciando compilação do WinRepair..." -ForegroundColor Cyan
+Write-Host "[*] Iniciando compilação do WinRepair com suporte UTF-8..." -ForegroundColor Cyan
 
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
@@ -20,6 +20,8 @@ $banner = @"
 # Execução direta via: irm <URL> | iex
 # ==============================================================================
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+`$OutputEncoding = [System.Text.Encoding]::UTF8
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
@@ -42,27 +44,29 @@ $moduleFiles = @(
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine($banner)
 
-# Adicionar arquivos do core
+# Adicionar arquivos do core lendo explicitamente como UTF-8
 foreach ($f in $coreFiles) {
     if (Test-Path $f) {
         Write-Host " -> Agregando $(Split-Path $f -Leaf)..." -ForegroundColor Gray
-        [void]$sb.AppendLine((Get-Content -Path $f -Raw))
+        $content = [System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8)
+        [void]$sb.AppendLine($content)
         [void]$sb.AppendLine()
     }
 }
 
-# Adicionar módulos
+# Adicionar módulos lendo explicitamente como UTF-8
 foreach ($f in $moduleFiles) {
     if (Test-Path $f) {
         Write-Host " -> Agregando $(Split-Path $f -Leaf)..." -ForegroundColor Gray
-        [void]$sb.AppendLine((Get-Content -Path $f -Raw))
+        $content = [System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8)
+        [void]$sb.AppendLine($content)
         [void]$sb.AppendLine()
     }
 }
 
-# Adicionar lógica de runtime com XAML embutido
+# Adicionar lógica de runtime com XAML embutido lido como UTF-8
 $xamlPath = "$PSScriptRoot\src\ui\app.xaml"
-$xamlContent = Get-Content -Path $xamlPath -Raw
+$xamlContent = [System.IO.File]::ReadAllText($xamlPath, [System.Text.Encoding]::UTF8)
 
 $runtimeScript = @"
 # 1. Garantir privilégios de Administrador
@@ -197,5 +201,8 @@ Write-ToolLog "WinRepair & Tweaks Utility carregado com sucesso!" "SUCCESS"
 
 [void]$sb.AppendLine($runtimeScript)
 
-Set-Content -Path $destination -Value $sb.ToString() -Encoding UTF8
+# Salvar com UTF-8 BOM para garantir compatibilidade total no irm | iex do PowerShell 5.1 e 7
+$utf8Bom = New-Object System.Text.UTF8Encoding($true)
+[System.IO.File]::WriteAllText($destination, $sb.ToString(), $utf8Bom)
+
 Write-Host "[+] Compilação concluída com sucesso: $destination" -ForegroundColor Green

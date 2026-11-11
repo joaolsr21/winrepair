@@ -1,13 +1,15 @@
 ﻿# ==============================================================================
 # WinRepair & Tweaks Utility (Standalone All-in-One)
-# ExecuÃ§Ã£o direta via: irm <URL> | iex
+# Execução direta via: irm <URL> | iex
 # ==============================================================================
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 # ==============================================================================
-# MÃ³dulo: ElevaÃ§Ã£o e PrivilÃ©gios
+# Módulo: Elevação e Privilégios
 # ==============================================================================
 
 function Test-IsAdmin {
@@ -18,10 +20,10 @@ function Test-IsAdmin {
 
 function Ensure-AdminPrivileges {
     if (-not (Test-IsAdmin)) {
-        Write-Warning "O script requer privilÃ©gios administrativos. Solicitando elevaÃ§Ã£o..."
+        Write-Warning "O script requer privilégios administrativos. Solicitando elevação..."
         $scriptPath = $PSCommandPath
         if (-not $scriptPath) {
-            # Se executado via iex em memÃ³ria
+            # Se executado via iex em memória
             Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm '$($global:ScriptDownloadUrl)' | iex }`""
         } else {
             Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
@@ -32,7 +34,7 @@ function Ensure-AdminPrivileges {
 
 
 # ==============================================================================
-# MÃ³dulo: Sistema de Logging
+# Módulo: Sistema de Logging
 # ==============================================================================
 
 function Write-ToolLog {
@@ -67,7 +69,7 @@ function Write-ToolLog {
 
 
 # ==============================================================================
-# MÃ³dulo: DiagnÃ³stico e Reparo de Rede / Internet
+# Módulo: Diagnóstico e Reparo de Rede / Internet
 # ==============================================================================
 
 function Invoke-FlushDns {
@@ -81,7 +83,7 @@ function Invoke-FlushDns {
 }
 
 function Invoke-ResetNetworkStack {
-    Write-ToolLog "Iniciando redefiniÃ§Ã£o da pilha TCP/IP e Winsock..." "INFO"
+    Write-ToolLog "Iniciando redefinição da pilha TCP/IP e Winsock..." "INFO"
     try {
         $winsockResult = netsh winsock reset
         Write-ToolLog "Winsock redefinido. ($winsockResult)" "INFO"
@@ -89,22 +91,22 @@ function Invoke-ResetNetworkStack {
         $tcpResult = netsh int ip reset
         Write-ToolLog "Pilha TCP/IP redefinida." "INFO"
 
-        Write-ToolLog "Pilha de rede reinicializada com Ãªxito. Ã‰ recomendÃ¡vel reiniciar o computador." "SUCCESS"
+        Write-ToolLog "Pilha de rede reinicializada com êxito. É recomendável reiniciar o computador." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao redefinir rede: $_" "ERROR"
     }
 }
 
 function Invoke-RenewDhcp {
-    Write-ToolLog "Liberando concessÃµes de IP ativas..." "INFO"
+    Write-ToolLog "Liberando concessões de IP ativas..." "INFO"
     try {
         ipconfig /release | Out-Null
         Start-Sleep -Seconds 1
-        Write-ToolLog "Renovando endereÃ§o IP com o servidor DHCP..." "INFO"
+        Write-ToolLog "Renovando endereço IP com o servidor DHCP..." "INFO"
         ipconfig /renew | Out-Null
-        Write-ToolLog "ConcessÃ£o de IP renovada com sucesso." "SUCCESS"
+        Write-ToolLog "Concessão de IP renovada com sucesso." "SUCCESS"
     } catch {
-        Write-ToolLog "Erro ao renovar concessÃ£o de IP: $_" "ERROR"
+        Write-ToolLog "Erro ao renovar concessão de IP: $_" "ERROR"
     }
 }
 
@@ -116,7 +118,7 @@ function Set-CustomDns {
 
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.Virtual -eq $false }
     if (-not $adapters) {
-        Write-ToolLog "Nenhum adaptador de rede fÃ­sico ativo encontrado." "WARN"
+        Write-ToolLog "Nenhum adaptador de rede físico ativo encontrado." "WARN"
         return
     }
 
@@ -133,7 +135,7 @@ function Set-CustomDns {
             }
             elseif ($Provider -eq "DHCP") {
                 Set-DnsClientServerAddress -InterfaceAlias $adapter.Name -ResetServerAddresses
-                Write-ToolLog "DNS restaurado para automÃ¡tico (DHCP) em $($adapter.Name)." "SUCCESS"
+                Write-ToolLog "DNS restaurado para automático (DHCP) em $($adapter.Name)." "SUCCESS"
             }
         } catch {
             Write-ToolLog "Falha ao definir DNS em $($adapter.Name): $_" "ERROR"
@@ -142,7 +144,7 @@ function Set-CustomDns {
 }
 
 function Restart-NetworkAdapters {
-    Write-ToolLog "Reiniciando adaptadores de rede fÃ­sicos..." "INFO"
+    Write-ToolLog "Reiniciando adaptadores de rede físicos..." "INFO"
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.Virtual -eq $false }
     foreach ($adapter in $adapters) {
         try {
@@ -157,11 +159,11 @@ function Restart-NetworkAdapters {
 
 
 # ==============================================================================
-# MÃ³dulo: OtimizaÃ§Ãµes de Desempenho e Limpeza
+# Módulo: Otimizações de Desempenho e Limpeza
 # ==============================================================================
 
 function Clear-TempFiles {
-    Write-ToolLog "Iniciando limpeza de arquivos temporÃ¡rios e logs do sistema..." "INFO"
+    Write-ToolLog "Iniciando limpeza de arquivos temporários e logs do sistema..." "INFO"
 
     $targets = @(
         "$env:TEMP\*",
@@ -181,7 +183,7 @@ function Clear-TempFiles {
                     $deletedCount++
                 }
             } catch {
-                # Alguns arquivos em uso pelo sistema nÃ£o serÃ£o removidos (comportamento normal)
+                # Alguns arquivos em uso pelo sistema não serão removidos (comportamento normal)
             }
         }
     }
@@ -190,14 +192,14 @@ function Clear-TempFiles {
         Clear-RecycleBin -Force -ErrorAction SilentlyContinue
         Write-ToolLog "Lixeira esvaziada." "SUCCESS"
     } catch {
-        Write-ToolLog "Lixeira jÃ¡ estava vazia ou indisponÃ­vel." "INFO"
+        Write-ToolLog "Lixeira já estava vazia ou indisponível." "INFO"
     }
 
-    Write-ToolLog "Limpeza temporÃ¡ria concluÃ­da. Itens processados/removidos: $deletedCount." "SUCCESS"
+    Write-ToolLog "Limpeza temporária concluída. Itens processados/removidos: $deletedCount." "SUCCESS"
 }
 
 function Clear-WindowsUpdateCache {
-    Write-ToolLog "Parando serviÃ§os do Windows Update..." "INFO"
+    Write-ToolLog "Parando serviços do Windows Update..." "INFO"
     try {
         Stop-Service -Name "wuauserv" -Force -ErrorAction SilentlyContinue
         Stop-Service -Name "bits" -Force -ErrorAction SilentlyContinue
@@ -209,7 +211,7 @@ function Clear-WindowsUpdateCache {
             Remove-Item -Path $wuCachePath -Recurse -Force -ErrorAction SilentlyContinue
         }
 
-        Write-ToolLog "Reiniciando serviÃ§os do Windows Update..." "INFO"
+        Write-ToolLog "Reiniciando serviços do Windows Update..." "INFO"
         Start-Service -Name "cryptSvc" -ErrorAction SilentlyContinue
         Start-Service -Name "bits" -ErrorAction SilentlyContinue
         Start-Service -Name "wuauserv" -ErrorAction SilentlyContinue
@@ -221,14 +223,14 @@ function Clear-WindowsUpdateCache {
 }
 
 function Optimize-SsdTrim {
-    Write-ToolLog "Verificando unidades SSD para execuÃ§Ã£o de TRIM (ReTrim)..." "INFO"
+    Write-ToolLog "Verificando unidades SSD para execução de TRIM (ReTrim)..." "INFO"
     try {
         $volumes = Get-Volume | Where-Object { $_.DriveType -eq 'Fixed' -and $_.DriveLetter }
         foreach ($vol in $volumes) {
             Write-ToolLog "Otimizando unidade $($vol.DriveLetter): ..." "INFO"
             Optimize-Volume -DriveLetter $vol.DriveLetter -ReTrim -ErrorAction SilentlyContinue
         }
-        Write-ToolLog "Comando TRIM enviado para todas as unidades elegÃ­veis." "SUCCESS"
+        Write-ToolLog "Comando TRIM enviado para todas as unidades elegíveis." "SUCCESS"
     } catch {
         Write-ToolLog "Falha ao executar TRIM nas unidades: $_" "ERROR"
     }
@@ -243,25 +245,25 @@ function Set-HibernationState {
     try {
         if ($Enable) {
             powercfg.exe -h on
-            Write-ToolLog "HibernaÃ§Ã£o ativada (arquivo hiberfil.sys habilitado)." "SUCCESS"
+            Write-ToolLog "Hibernação ativada (arquivo hiberfil.sys habilitado)." "SUCCESS"
         } else {
             powercfg.exe -h off
-            Write-ToolLog "HibernaÃ§Ã£o desativada. EspaÃ§o em disco liberado (hiberfil.sys excluÃ­do)." "SUCCESS"
+            Write-ToolLog "Hibernação desativada. Espaço em disco liberado (hiberfil.sys excluído)." "SUCCESS"
         }
     } catch {
-        Write-ToolLog "Erro ao alterar estado de hibernaÃ§Ã£o: $_" "ERROR"
+        Write-ToolLog "Erro ao alterar estado de hibernação: $_" "ERROR"
     }
 }
 
 function Optimize-TelemetryAndPrivacy {
-    Write-ToolLog "Configurando polÃ­ticas de telemetria e diagnÃ³stico do Windows..." "INFO"
+    Write-ToolLog "Configurando políticas de telemetria e diagnóstico do Windows..." "INFO"
     try {
-        # Desabilitar serviÃ§o de telemetria conectada e experiÃªncias de usuÃ¡rio
+        # Desabilitar serviço de telemetria conectada e experiências de usuário
         $diagService = Get-Service -Name "DiagTrack" -ErrorAction SilentlyContinue
         if ($diagService) {
             Stop-Service -Name "DiagTrack" -Force -ErrorAction SilentlyContinue
             Set-Service -Name "DiagTrack" -StartupType Disabled -ErrorAction SilentlyContinue
-            Write-ToolLog "ServiÃ§o de Rastreamento de DiagnÃ³stico (DiagTrack) desativado." "SUCCESS"
+            Write-ToolLog "Serviço de Rastreamento de Diagnóstico (DiagTrack) desativado." "SUCCESS"
         }
 
         # Desabilitar dmwappushservice (WAP Push Service)
@@ -269,24 +271,24 @@ function Optimize-TelemetryAndPrivacy {
         if ($pushService) {
             Stop-Service -Name "dmwappushservice" -Force -ErrorAction SilentlyContinue
             Set-Service -Name "dmwappushservice" -StartupType Disabled -ErrorAction SilentlyContinue
-            Write-ToolLog "ServiÃ§o dmwappushservice desativado." "SUCCESS"
+            Write-ToolLog "Serviço dmwappushservice desativado." "SUCCESS"
         }
 
-        # Registro: NÃ­vel de telemetria para o mÃ­nimo (SeguranÃ§a / BÃ¡sico)
+        # Registro: Nível de telemetria para o mínimo (Segurança / Básico)
         $dataCollectionKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
         if (-not (Test-Path $dataCollectionKey)) {
             New-Item -Path $dataCollectionKey -Force | Out-Null
         }
         Set-ItemProperty -Path $dataCollectionKey -Name "AllowTelemetry" -Value 0 -Type DWord -Force
 
-        # Desativar ID de AnÃºncio
+        # Desativar ID de Anúncio
         $advertisingKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo"
         if (-not (Test-Path $advertisingKey)) {
             New-Item -Path $advertisingKey -Force | Out-Null
         }
         Set-ItemProperty -Path $advertisingKey -Name "DisabledByGroupPolicy" -Value 1 -Type DWord -Force
 
-        Write-ToolLog "ConfiguraÃ§Ãµes de privacidade e reduÃ§Ã£o de telemetria aplicadas." "SUCCESS"
+        Write-ToolLog "Configurações de privacidade e redução de telemetria aplicadas." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao ajustar telemetria: $_" "ERROR"
     }
@@ -294,20 +296,20 @@ function Optimize-TelemetryAndPrivacy {
 
 
 # ==============================================================================
-# MÃ³dulo: DiagnÃ³stico e Reparo do Sistema Operacional
+# Módulo: Diagnóstico e Reparo do Sistema Operacional
 # ==============================================================================
 
 function Invoke-SfcScan {
-    Write-ToolLog "Iniciando verificaÃ§Ã£o de integridade dos arquivos de sistema (SFC)..." "INFO"
+    Write-ToolLog "Iniciando verificação de integridade dos arquivos de sistema (SFC)..." "INFO"
     Write-ToolLog "Este processo pode levar alguns minutos. Aguarde..." "INFO"
     try {
         $process = Start-Process -FilePath "sfc.exe" -ArgumentList "/scannow" -NoNewWindow -Wait -PassThru
         if ($process.ExitCode -eq 0) {
-            Write-ToolLog "SFC: A ProteÃ§Ã£o de Recursos do Windows nÃ£o encontrou nenhuma violaÃ§Ã£o de integridade." "SUCCESS"
+            Write-ToolLog "SFC: A Proteção de Recursos do Windows não encontrou nenhuma violação de integridade." "SUCCESS"
         } elseif ($process.ExitCode -eq 1) {
             Write-ToolLog "SFC: Arquivos corrompidos foram encontrados e corrigidos com sucesso!" "SUCCESS"
         } else {
-            Write-ToolLog "SFC finalizado com cÃ³digo de saÃ­da: $($process.ExitCode). Verifique C:\Windows\Logs\CBS\CBS.log" "WARN"
+            Write-ToolLog "SFC finalizado com código de saída: $($process.ExitCode). Verifique C:\Windows\Logs\CBS\CBS.log" "WARN"
         }
     } catch {
         Write-ToolLog "Falha ao executar o SFC: $_" "ERROR"
@@ -316,13 +318,13 @@ function Invoke-SfcScan {
 
 function Invoke-DismRepair {
     Write-ToolLog "Iniciando reparo da imagem do sistema Windows com DISM..." "INFO"
-    Write-ToolLog "Verificando integridade e restaurando saÃºde da imagem (/RestoreHealth)..." "INFO"
+    Write-ToolLog "Verificando integridade e restaurando saúde da imagem (/RestoreHealth)..." "INFO"
     try {
         $process = Start-Process -FilePath "dism.exe" -ArgumentList "/Online /Cleanup-Image /RestoreHealth" -NoNewWindow -Wait -PassThru
         if ($process.ExitCode -eq 0) {
-            Write-ToolLog "DISM: A operaÃ§Ã£o de restauraÃ§Ã£o foi concluÃ­da com Ãªxito." "SUCCESS"
+            Write-ToolLog "DISM: A operação de restauração foi concluída com êxito." "SUCCESS"
         } else {
-            Write-ToolLog "DISM finalizado com cÃ³digo: $($process.ExitCode). Verifique C:\Windows\Logs\DISM\dism.log" "WARN"
+            Write-ToolLog "DISM finalizado com código: $($process.ExitCode). Verifique C:\Windows\Logs\DISM\dism.log" "WARN"
         }
     } catch {
         Write-ToolLog "Falha ao executar o DISM: $_" "ERROR"
@@ -330,13 +332,13 @@ function Invoke-DismRepair {
 }
 
 function Invoke-DismCleanup {
-    Write-ToolLog "Executando limpeza do repositÃ³rio de componentes WinSxS (/StartComponentCleanup)..." "INFO"
+    Write-ToolLog "Executando limpeza do repositório de componentes WinSxS (/StartComponentCleanup)..." "INFO"
     try {
         $process = Start-Process -FilePath "dism.exe" -ArgumentList "/Online /Cleanup-Image /StartComponentCleanup /ResetBase" -NoNewWindow -Wait -PassThru
         if ($process.ExitCode -eq 0) {
-            Write-ToolLog "Limpeza da pasta WinSxS concluÃ­da. EspaÃ§o em disco recuperado." "SUCCESS"
+            Write-ToolLog "Limpeza da pasta WinSxS concluída. Espaço em disco recuperado." "SUCCESS"
         } else {
-            Write-ToolLog "DISM Component Cleanup retornou cÃ³digo: $($process.ExitCode)." "WARN"
+            Write-ToolLog "DISM Component Cleanup retornou código: $($process.ExitCode)." "WARN"
         }
     } catch {
         Write-ToolLog "Falha na limpeza de componentes: $_" "ERROR"
@@ -344,7 +346,7 @@ function Invoke-DismCleanup {
 }
 
 function Restart-PrintSpooler {
-    Write-ToolLog "Reiniciando o Spooler de ImpressÃ£o e limpando filas travadas..." "INFO"
+    Write-ToolLog "Reiniciando o Spooler de Impressão e limpando filas travadas..." "INFO"
     try {
         Stop-Service -Name "Spooler" -Force -ErrorAction SilentlyContinue
         $spoolPath = "C:\Windows\System32\spool\PRINTERS\*"
@@ -352,17 +354,17 @@ function Restart-PrintSpooler {
             Remove-Item -Path $spoolPath -Force -Recurse -ErrorAction SilentlyContinue
         }
         Start-Service -Name "Spooler" -ErrorAction SilentlyContinue
-        Write-ToolLog "Fila de impressÃ£o limpa e serviÃ§o Spooler reiniciado com sucesso." "SUCCESS"
+        Write-ToolLog "Fila de impressão limpa e serviço Spooler reiniciado com sucesso." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao reiniciar Spooler: $_" "ERROR"
     }
 }
 
 function Schedule-ChkdskOnReboot {
-    Write-ToolLog "Agendando verificaÃ§Ã£o de disco (CHKDSK /F) para a prÃ³xima reinicializaÃ§Ã£o..." "INFO"
+    Write-ToolLog "Agendando verificação de disco (CHKDSK /F) para a próxima reinicialização..." "INFO"
     try {
         $result = echo "Y" | chkdsk C: /f
-        Write-ToolLog "CHKDSK agendado na unidade C:. O disco serÃ¡ verificado na prÃ³xima inicializaÃ§Ã£o." "SUCCESS"
+        Write-ToolLog "CHKDSK agendado na unidade C:. O disco será verificado na próxima inicialização." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao agendar CHKDSK: $_" "ERROR"
     }
@@ -370,7 +372,7 @@ function Schedule-ChkdskOnReboot {
 
 
 # ==============================================================================
-# MÃ³dulo: CriaÃ§Ã£o e CustomizaÃ§Ã£o de ISO / Imagem do Windows (DISM)
+# Módulo: Criação e Customização de ISO / Imagem do Windows (DISM)
 # ==============================================================================
 
 function Get-WimImageInfo {
@@ -380,7 +382,7 @@ function Get-WimImageInfo {
     )
 
     if (-not (Test-Path $WimPath)) {
-        Write-ToolLog "Arquivo WIM/ESD nÃ£o encontrado: $WimPath" "ERROR"
+        Write-ToolLog "Arquivo WIM/ESD não encontrado: $WimPath" "ERROR"
         return $null
     }
 
@@ -388,7 +390,7 @@ function Get-WimImageInfo {
         $images = Get-WindowsImage -ImagePath $WimPath
         return $images
     } catch {
-        Write-ToolLog "Falha ao obter informaÃ§Ãµes do WIM: $_" "ERROR"
+        Write-ToolLog "Falha ao obter informações do WIM: $_" "ERROR"
         return $null
     }
 }
@@ -406,7 +408,7 @@ function Mount-CustomWim {
         New-Item -ItemType Directory -Path $MountDir -Force | Out-Null
     }
 
-    Write-ToolLog "Montando imagem $WimPath (Ãndice $Index) em $MountDir..." "INFO"
+    Write-ToolLog "Montando imagem $WimPath (Índice $Index) em $MountDir..." "INFO"
     try {
         Mount-WindowsImage -ImagePath $WimPath -Index $Index -Path $MountDir
         Write-ToolLog "Imagem montada com sucesso em $MountDir." "SUCCESS"
@@ -457,7 +459,7 @@ function Remove-ProvisionedBloatware {
                 }
             }
         }
-        Write-ToolLog "RemoÃ§Ã£o de bloatware concluÃ­da. Pacotes removidos: $removedCount." "SUCCESS"
+        Write-ToolLog "Remoção de bloatware concluída. Pacotes removidos: $removedCount." "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao remover pacotes da imagem: $_" "ERROR"
     }
@@ -473,7 +475,7 @@ function Add-BypassHardwareChecksToWim {
     $systemHive = Join-Path $MountDir "Windows\System32\config\SYSTEM"
 
     if (-not (Test-Path $systemHive)) {
-        Write-ToolLog "Hive do sistema nÃ£o encontrada em $systemHive" "ERROR"
+        Write-ToolLog "Hive do sistema não encontrada em $systemHive" "ERROR"
         return
     }
 
@@ -522,7 +524,7 @@ function Save-AndDismountWim {
             Write-ToolLog "Imagem salva e desmontada com sucesso." "SUCCESS"
         } else {
             Dismount-WindowsImage -Path $MountDir -Discard
-            Write-ToolLog "AlteraÃ§Ãµes descartadas e imagem desmontada." "INFO"
+            Write-ToolLog "Alterações descartadas e imagem desmontada." "INFO"
         }
     } catch {
         Write-ToolLog "Erro ao desmontar imagem: $_" "ERROR"
@@ -531,7 +533,7 @@ function Save-AndDismountWim {
 
 
 # ==============================================================================
-# MÃ³dulo: Gerenciamento e AtivaÃ§Ã£o de LicenÃ§as (Windows & Microsoft Office)
+# Módulo: Gerenciamento e Ativação de Licenças (Windows & Microsoft Office)
 # ==============================================================================
 
 function Get-WindowsActivationStatus {
@@ -540,17 +542,17 @@ function Get-WindowsActivationStatus {
         $wpa = Get-CimInstance -ClassName SoftwareLicensingProduct | Where-Object { $_.PartialProductKey -and $_.ApplicationId -eq '55c92734-d682-4d71-983e-d6ec3f16059f' } | Select-Object -First 1
         
         $statusText = switch ($wpa.LicenseStatus) {
-            0 { "NÃ£o Licenciado" }
+            0 { "Não Licenciado" }
             1 { "Licenciado / Ativado Permanente" }
-            2 { "PerÃ­odo OOBE Grace" }
-            3 { "PerÃ­odo de TolerÃ¢ncia (Grace)" }
-            4 { "PerÃ­odo de NÃ£o Genuinidade" }
-            5 { "NotificaÃ§Ã£o de TolerÃ¢ncia" }
+            2 { "Período OOBE Grace" }
+            3 { "Período de Tolerância (Grace)" }
+            4 { "Período de Não Genuinidade" }
+            5 { "Notificação de Tolerância" }
             default { "Status Desconhecido ($($wpa.LicenseStatus))" }
         }
 
-        Write-ToolLog "EdiÃ§Ã£o: $($wpa.Name)" "INFO"
-        Write-ToolLog "Status da LicenÃ§a: $statusText" $(if ($wpa.LicenseStatus -eq 1) { "SUCCESS" } else { "WARN" })
+        Write-ToolLog "Edição: $($wpa.Name)" "INFO"
+        Write-ToolLog "Status da Licença: $statusText" $(if ($wpa.LicenseStatus -eq 1) { "SUCCESS" } else { "WARN" })
         Write-ToolLog "Chave Parcial Instalada: ...-$($wpa.PartialProductKey)" "INFO"
         return $statusText
     } catch {
@@ -568,7 +570,7 @@ function Install-WindowsProductKey {
 
     $cleanKey = $ProductKey.Trim().ToUpper()
     if ($cleanKey -notmatch "^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$") {
-        Write-ToolLog "Formato de chave invÃ¡lido! Utilize o formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" "ERROR"
+        Write-ToolLog "Formato de chave inválido! Utilize o formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" "ERROR"
         return
     }
 
@@ -577,13 +579,13 @@ function Install-WindowsProductKey {
         $ipkResult = cscript.exe //NoLogo C:\Windows\System32\slmgr.vbs /ipk $cleanKey
         Write-ToolLog "$ipkResult" "INFO"
 
-        Write-ToolLog "Solicitando ativaÃ§Ã£o online junto aos servidores de licenciamento da Microsoft..." "INFO"
+        Write-ToolLog "Solicitando ativação online junto aos servidores de licenciamento da Microsoft..." "INFO"
         $atoResult = cscript.exe //NoLogo C:\Windows\System32\slmgr.vbs /ato
         Write-ToolLog "$atoResult" "SUCCESS"
 
         Get-WindowsActivationStatus | Out-Null
     } catch {
-        Write-ToolLog "Erro durante o processo de ativaÃ§Ã£o do Windows: $_" "ERROR"
+        Write-ToolLog "Erro durante o processo de ativação do Windows: $_" "ERROR"
     }
 }
 
@@ -606,11 +608,11 @@ function Find-OfficeOsppPath {
 }
 
 function Get-OfficeActivationStatus {
-    Write-ToolLog "Localizando instalaÃ§Ã£o do Microsoft Office..." "INFO"
+    Write-ToolLog "Localizando instalação do Microsoft Office..." "INFO"
     $ospp = Find-OfficeOsppPath
 
     if (-not $ospp) {
-        Write-ToolLog "Nenhuma instalaÃ§Ã£o corporativa/padrÃ£o do Microsoft Office com ospp.vbs foi encontrada neste computador." "WARN"
+        Write-ToolLog "Nenhuma instalação corporativa/padrão do Microsoft Office com ospp.vbs foi encontrada neste computador." "WARN"
         return
     }
 
@@ -631,13 +633,13 @@ function Install-OfficeProductKey {
 
     $cleanKey = $ProductKey.Trim().ToUpper()
     if ($cleanKey -notmatch "^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$") {
-        Write-ToolLog "Formato de chave invÃ¡lido! Utilize o padrÃ£o: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" "ERROR"
+        Write-ToolLog "Formato de chave inválido! Utilize o padrão: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" "ERROR"
         return
     }
 
     $ospp = Find-OfficeOsppPath
     if (-not $ospp) {
-        Write-ToolLog "InstalaÃ§Ã£o do Microsoft Office nÃ£o encontrada." "ERROR"
+        Write-ToolLog "Instalação do Microsoft Office não encontrada." "ERROR"
         return
     }
 
@@ -647,7 +649,7 @@ function Install-OfficeProductKey {
         $inpResult = cscript.exe //NoLogo "$ospp" $argKey
         Write-ToolLog "$inpResult" "INFO"
 
-        Write-ToolLog "Tentando ativaÃ§Ã£o do Office..." "INFO"
+        Write-ToolLog "Tentando ativação do Office..." "INFO"
         $actResult = cscript.exe //NoLogo "$ospp" /act
         Write-ToolLog "$actResult" "SUCCESS"
 
@@ -684,7 +686,7 @@ function Set-EnterpriseKmsServer {
 }
 
 
-# 1. Garantir privilÃ©gios de Administrador
+# 1. Garantir privilégios de Administrador
 if (-not (Test-IsAdmin)) {
     Ensure-AdminPrivileges
     return
@@ -695,7 +697,7 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-# 3. Carregar interface grÃ¡fica embutida
+# 3. Carregar interface gráfica embutida
 [xml]$xaml = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -795,7 +797,7 @@ Add-Type -AssemblyName WindowsBase
             <RowDefinition Height="180"/>
         </Grid.RowDefinitions>
 
-        <!-- CabeÃ§alho -->
+        <!-- Cabeçalho -->
         <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="16,12" Margin="0,0,0,12" BorderBrush="#313244" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -803,8 +805,8 @@ Add-Type -AssemblyName WindowsBase
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="âš¡ WinRepair &amp; Tweaks Utility" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Painel Central de Reparos RÃ¡pidos, OtimizaÃ§Ãµes e ManutenÃ§Ã£o" FontSize="12" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="⚡ WinRepair &amp; Tweaks Utility" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
+                    <TextBlock Text="Painel Central de Reparos Rápidos, Otimizações e Manutenção" FontSize="12" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Orientation="Horizontal">
                     <TextBlock Name="txtSystemInfo" Text="Carregando info do sistema..." FontSize="12" Foreground="#94E2D5" Margin="0,0,10,0" VerticalAlignment="Center"/>
@@ -815,36 +817,36 @@ Add-Type -AssemblyName WindowsBase
         <!-- Abas Principais -->
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             <!-- ABA 1: REDE E INTERNET -->
-            <TabItem Header="ðŸŒ Rede &amp; Internet">
+            <TabItem Header="🌐 Rede &amp; Internet">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
-                        <GroupBox Header="Reparos de ConexÃ£o e Pilha TCP/IP">
+                        <GroupBox Header="Reparos de Conexão e Pilha TCP/IP">
                             <WrapPanel>
                                 <Button Name="btnFlushDns" Content="Limpar Cache DNS" Width="200" Height="40"/>
                                 <Button Name="btnResetNetwork" Content="Redefinir Pilha TCP/IP e Winsock" Width="240" Height="40"/>
-                                <Button Name="btnRenewDhcp" Content="Renovar ConcessÃ£o de IP / DHCP" Width="220" Height="40"/>
+                                <Button Name="btnRenewDhcp" Content="Renovar Concessão de IP / DHCP" Width="220" Height="40"/>
                                 <Button Name="btnRestartAdapters" Content="Reiniciar Adaptadores de Rede" Width="220" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Servidores DNS RÃ¡pidos e ConfiÃ¡veis">
+                        <GroupBox Header="Servidores DNS Rápidos e Confiáveis">
                             <WrapPanel>
                                 <Button Name="btnDnsCloudflare" Content="DNS Cloudflare (1.1.1.1)" Width="200" Height="40"/>
                                 <Button Name="btnDnsGoogle" Content="DNS Google (8.8.8.8)" Width="200" Height="40"/>
-                                <Button Name="btnDnsDhcp" Content="Restaurar DNS AutomÃ¡tico (DHCP)" Width="230" Height="40"/>
+                                <Button Name="btnDnsDhcp" Content="Restaurar DNS Automático (DHCP)" Width="230" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 2: OTIMIZAÃ‡ÃƒO -->
-            <TabItem Header="âš¡ OtimizaÃ§Ã£o">
+            <!-- ABA 2: OTIMIZAÇÃO -->
+            <TabItem Header="⚡ Otimização">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
                         <GroupBox Header="Limpeza e Armazenamento">
                             <WrapPanel>
-                                <Button Name="btnClearTemp" Content="Limpar Arquivos TemporÃ¡rios e Lixeira" Width="260" Height="40"/>
+                                <Button Name="btnClearTemp" Content="Limpar Arquivos Temporários e Lixeira" Width="260" Height="40"/>
                                 <Button Name="btnClearWuCache" Content="Limpar Cache do Windows Update" Width="240" Height="40"/>
                                 <Button Name="btnSsdTrim" Content="Otimizar SSDs (Executar TRIM)" Width="220" Height="40"/>
                             </WrapPanel>
@@ -853,8 +855,8 @@ Add-Type -AssemblyName WindowsBase
                         <GroupBox Header="Ajustes de Desempenho e Privacidade">
                             <WrapPanel>
                                 <Button Name="btnOptimizeTelemetry" Content="Reduzir Telemetria e Coleta de Dados" Width="250" Height="40"/>
-                                <Button Name="btnDisableHibernation" Content="Desativar HibernaÃ§Ã£o (Liberar EspaÃ§o)" Width="260" Height="40"/>
-                                <Button Name="btnEnableHibernation" Content="Ativar HibernaÃ§Ã£o" Width="160" Height="40"/>
+                                <Button Name="btnDisableHibernation" Content="Desativar Hibernação (Liberar Espaço)" Width="260" Height="40"/>
+                                <Button Name="btnEnableHibernation" Content="Ativar Hibernação" Width="160" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
@@ -862,16 +864,16 @@ Add-Type -AssemblyName WindowsBase
             </TabItem>
 
             <!-- ABA 3: REPARO DO SISTEMA -->
-            <TabItem Header="ðŸ› ï¸ Reparo do Sistema">
+            <TabItem Header="🛠️ Reparo do Sistema">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
-                        <GroupBox Header="Integridade e SaÃºde do Windows">
+                        <GroupBox Header="Integridade e Saúde do Windows">
                             <WrapPanel>
-                                <Button Name="btnSfcScan" Content="VerificaÃ§Ã£o de Integridade (SFC /scannow)" Width="270" Height="40"/>
+                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="40"/>
                                 <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="250" Height="40"/>
                                 <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="240" Height="40"/>
                                 <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="40"/>
-                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de ImpressÃ£o" Width="230" Height="40"/>
+                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="40"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
@@ -879,10 +881,10 @@ Add-Type -AssemblyName WindowsBase
             </TabItem>
 
             <!-- ABA 4: CRIAR ISO MODIFICADA -->
-            <TabItem Header="ðŸ’¿ Criador de ISO">
+            <TabItem Header="💿 Criador de ISO">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
-                        <GroupBox Header="ConfiguraÃ§Ã£o da Imagem WIM / ESD">
+                        <GroupBox Header="Configuração da Imagem WIM / ESD">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="150"/>
@@ -900,14 +902,14 @@ Add-Type -AssemblyName WindowsBase
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Pasta de Montagem:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtMountDir" Grid.Row="1" Grid.Column="1" Margin="0,4" Text="C:\ISO_Work\mount"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ãndice da Imagem:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Índice da Imagem:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtWimIndex" Grid.Row="2" Grid.Column="1" Margin="0,4" Text="1" Width="80" HorizontalAlignment="Left"/>
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="OperaÃ§Ãµes de CustomizaÃ§Ã£o">
+                        <GroupBox Header="Operações de Customização">
                             <WrapPanel>
-                                <Button Name="btnGetWimInfo" Content="Consultar InformaÃ§Ãµes do WIM" Width="220" Height="40"/>
+                                <Button Name="btnGetWimInfo" Content="Consultar Informações do WIM" Width="220" Height="40"/>
                                 <Button Name="btnMountWim" Content="1. Montar Imagem WIM" Width="180" Height="40"/>
                                 <Button Name="btnDebloatWim" Content="2. Remover Bloatware (AppX)" Width="210" Height="40"/>
                                 <Button Name="btnBypassWim" Content="3. Injetar Bypass TPM/RAM/NRO" Width="230" Height="40"/>
@@ -920,13 +922,13 @@ Add-Type -AssemblyName WindowsBase
             </TabItem>
 
             <!-- ABA 5: LICENCIAMENTO -->
-            <TabItem Header="ðŸ”‘ Licenciamento">
+            <TabItem Header="🔑 Licenciamento">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
-                        <GroupBox Header="Gerenciamento de LicenÃ§a do Windows">
+                        <GroupBox Header="Gerenciamento de Licença do Windows">
                             <StackPanel>
                                 <WrapPanel Margin="0,0,0,8">
-                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da LicenÃ§a" Width="210" Height="36"/>
+                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="36"/>
                                 </WrapPanel>
                                 <Grid Margin="0,4">
                                     <Grid.ColumnDefinitions>
@@ -941,7 +943,7 @@ Add-Type -AssemblyName WindowsBase
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Gerenciamento de LicenÃ§a do Microsoft Office">
+                        <GroupBox Header="Gerenciamento de Licença do Microsoft Office">
                             <StackPanel>
                                 <WrapPanel Margin="0,0,0,8">
                                     <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="36"/>
@@ -959,7 +961,7 @@ Add-Type -AssemblyName WindowsBase
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="ConfiguraÃ§Ã£o de Servidor KMS Institucional / Corporativo">
+                        <GroupBox Header="Configuração de Servidor KMS Institucional / Corporativo">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="130"/>
@@ -976,7 +978,7 @@ Add-Type -AssemblyName WindowsBase
             </TabItem>
         </TabControl>
 
-        <!-- RodapÃ© / Painel de Logs -->
+        <!-- Rodapé / Painel de Logs -->
         <Border Grid.Row="2" Background="#11111B" CornerRadius="8" Margin="0,10,0,0" BorderBrush="#313244" BorderThickness="1">
             <Grid Margin="8">
                 <Grid.RowDefinitions>
@@ -989,7 +991,7 @@ Add-Type -AssemblyName WindowsBase
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="ðŸ“œ Console de ExecuÃ§Ã£o &amp; Logs" FontSize="12" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs" FontSize="12" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
                     <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="8,4" FontSize="11" Margin="0"/>
                 </Grid>
 
@@ -1016,7 +1018,7 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 $global:txtLogControl = $window.FindName("txtLog")
 $global:uiDispatcher = [System.Windows.Threading.Dispatcher]::CurrentDispatcher
 
-# InformaÃ§Ãµes do Sistema
+# Informações do Sistema
 try {
     $os = Get-CimInstance Win32_OperatingSystem
     $cs = Get-CimInstance Win32_ComputerSystem
@@ -1032,7 +1034,7 @@ function Start-AsyncAction {
         try {
             & $using:Action
         } catch {
-            Write-ToolLog "Erro na execuÃ§Ã£o da tarefa: $_" "ERROR"
+            Write-ToolLog "Erro na execução da tarefa: $_" "ERROR"
         }
     }) | Out-Null
 }
@@ -1065,7 +1067,7 @@ $window.FindName("btnGetWimInfo").Add_Click({
         $info = Get-WimImageInfo -WimPath $using:wimPath
         if ($info) {
             foreach ($img in $info) {
-                Write-ToolLog "Ãndice [$($img.ImageIndex)]: $($img.ImageName) ($($img.ImageSize / 1GB -as [int]) GB)" "INFO"
+                Write-ToolLog "Índice [$($img.ImageIndex)]: $($img.ImageName) ($($img.ImageSize / 1GB -as [int]) GB)" "INFO"
             }
         }
     }
@@ -1122,4 +1124,3 @@ $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Utility carregado com sucesso!" "SUCCESS"
 $window.ShowDialog() | Out-Null
-
