@@ -198,11 +198,52 @@ $window.FindName("btnApplySelectedTweaks").Add_Click({
     }
 })
 
-# --- ABA 2: REDE ---
-$window.FindName("btnTestNetwork").Add_Click({ Start-AsyncAction { Test-NetworkQuality } })
-$window.FindName("btnFlushDnsTab").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
-$window.FindName("btnRenewDhcpTab").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
+# --- ABA 2: REDE & DIAGNOSTICO COMPLETO ---
+$window.FindName("btnNetQuickDiag").Add_Click({ Start-AsyncAction { Invoke-QuickIntegratedNetworkDiag } })
+$window.FindName("btnNetDetailed").Add_Click({ Start-AsyncAction { Invoke-DetailedInternetTest } })
+$window.FindName("btnNetSpeedtest").Add_Click({ Start-AsyncAction { Invoke-DownloadSpeedTest } })
+$window.FindName("btnNetWifi").Add_Click({ Start-AsyncAction { Invoke-WifiDiagnostics -GenerateHtmlReport $false } })
+$window.FindName("btnNetWifiReport").Add_Click({ Start-AsyncAction { Invoke-WifiDiagnostics -GenerateHtmlReport $true } })
+
+$window.FindName("btnNetTestPort").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    $portVal = 443
+    if (-not [int]::TryParse($window.FindName("txtNetPort").Text, [ref]$portVal)) {
+        Write-ToolLog "Informe um número de porta TCP válido (ex: 80, 443, 3389)." "WARN"
+        return
+    }
+    if (-not $target) { $target = "google.com" }
+    Start-AsyncAction -Vars @{ target = $target; portVal = $portVal } -Action {
+        Test-SpecificTcpPort -TargetHost $target -Port $portVal
+    }
+})
+
+$window.FindName("btnNetPathping").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-AsyncAction -Vars @{ target = $target } -Action { Invoke-PathpingAnalysis -TargetHost $target }
+})
+
+$window.FindName("btnNetTracert").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-AsyncAction -Vars @{ target = $target } -Action { Invoke-TracertAnalysis -TargetHost $target }
+})
+
+$window.FindName("btnNetPingCont").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-ContinuousPingWindow -TargetHost $target
+})
+
+$window.FindName("btnNetstatEst").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "Established" } })
+$window.FindName("btnNetstatList").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "Listening" } })
+$window.FindName("btnNetstatAll").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "All" } })
+$window.FindName("btnNetSubnetScan").Add_Click({ Start-AsyncAction { Invoke-LocalSubnetScan -SaveAndOpenReport $true } })
+$window.FindName("btnNetIpConfig").Add_Click({ Start-AsyncAction { Get-IpConfigAllDetails } })
+
+$window.FindName("btnNetSimpleRepair").Add_Click({ Start-AsyncAction { Invoke-SimpleNetworkRepair } })
+$window.FindName("btnNetResetDeep").Add_Click({ Start-AsyncAction { Invoke-ResetNetworkStack } })
+$window.FindName("btnNetForensicReport").Add_Click({ Start-AsyncAction { Export-ForensicNetworkReport } })
 $window.FindName("btnRestartAdapters").Add_Click({ Start-AsyncAction { Restart-NetworkAdapters } })
+$window.FindName("btnOptimizeTcpTab").Add_Click({ Start-AsyncAction { Optimize-TcpLatencyAndThroughput } })
 
 $window.FindName("btnDnsCloudflare").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Cloudflare" } })
 $window.FindName("btnDnsGoogle").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Google" } })

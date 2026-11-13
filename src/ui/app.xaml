@@ -199,26 +199,66 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 2: REDE & DNS -->
+            <!-- ABA 2: REDE, DIAGNÓSTICO COMPLETO & DNS -->
             <TabItem Header="🌐 Rede &amp; Conectividade">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="Diagnóstico da Conexão">
+                        <GroupBox Header="Alvo para Testes Avançados (Porta TCP, Pathping, Tracert e Ping Contínuo)">
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="90"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Host / IP Alvo:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
+                                <TextBox Name="txtNetTarget" Grid.Column="1" Margin="0,0,10,0" Text="8.8.8.8"/>
+                                <TextBlock Grid.Column="2" Text="Porta TCP:" VerticalAlignment="Center" Foreground="#A6ADC8" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                                <TextBox Name="txtNetPort" Grid.Column="3" Text="443"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Diagnóstico e Testes de Conectividade (Opções 1 a 8)">
                             <WrapPanel>
-                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="36"/>
-                                <Button Name="btnFlushDnsTab" Content="Limpar Cache DNS" Width="180" Height="36"/>
-                                <Button Name="btnRenewDhcpTab" Content="Renovar IP / DHCP" Width="180" Height="36"/>
-                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="210" Height="36"/>
+                                <Button Name="btnNetQuickDiag" Content="[1] Diagnóstico Rápido Integrado" Width="230" Height="34"/>
+                                <Button Name="btnNetDetailed" Content="[2] Teste Detalhado (Ping + HTTPS + DNS)" Width="270" Height="34"/>
+                                <Button Name="btnNetSpeedtest" Content="[3] Teste Velocidade Download (Mbps)" Width="250" Height="34"/>
+                                <Button Name="btnNetWifi" Content="[4] Diagnóstico Wi-Fi (Sinal/Redes)" Width="230" Height="34"/>
+                                <Button Name="btnNetWifiReport" Content="[4b] Gerar Relatório Wi-Fi (HTML)" Width="230" Height="34"/>
+                                <Button Name="btnNetTestPort" Content="[5] Testar Porta TCP Alvo" Width="190" Height="34"/>
+                                <Button Name="btnNetPathping" Content="[6] Perda de Pacotes (Pathping)" Width="220" Height="34"/>
+                                <Button Name="btnNetTracert" Content="[7] Rastrear Rota (Tracert)" Width="200" Height="34"/>
+                                <Button Name="btnNetPingCont" Content="[8] Ping Contínuo (-t)" Width="180" Height="34"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Troca Rápida de DNS">
+                        <GroupBox Header="Monitoramento, Varredura &amp; Dispositivos (Opções 9 a 11)">
                             <WrapPanel>
-                                <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="210" Height="36"/>
-                                <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confiável" Width="210" Height="36"/>
-                                <Button Name="btnDnsQuad9" Content="Quad9 (9.9.9.9) - Anti-Malware" Width="220" Height="36"/>
-                                <Button Name="btnDnsAdGuard" Content="AdGuard - Bloqueia Anúncios" Width="210" Height="36"/>
-                                <Button Name="btnDnsDhcp" Content="Restaurar Automático (DHCP)" Width="210" Height="36"/>
+                                <Button Name="btnNetstatEst" Content="[9a] Netstat: Conexões Ativas" Width="210" Height="34"/>
+                                <Button Name="btnNetstatList" Content="[9b] Netstat: Portas Escutando" Width="210" Height="34"/>
+                                <Button Name="btnNetstatAll" Content="[9c] Netstat: Tudo Detalhado" Width="200" Height="34"/>
+                                <Button Name="btnNetSubnetScan" Content="[10] Varredura Rede Local (IPs Livres/Ocupados)" Width="310" Height="34" Background="#313244" Foreground="#A6E3A1"/>
+                                <Button Name="btnNetIpConfig" Content="[11] Exibir ipconfig /all" Width="170" Height="34"/>
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Reparo, Reset, Relatório Forense &amp; Otimização TCP (Opções 12 a 14)">
+                            <WrapPanel>
+                                <Button Name="btnNetSimpleRepair" Content="[12] Reparar Conexão (DNS/DHCP/NetBIOS)" Width="270" Height="34"/>
+                                <Button Name="btnNetResetDeep" Content="[13] Reset Completo Pilha (Winsock/TCP/FW)" Width="280" Height="34"/>
+                                <Button Name="btnNetForensicReport" Content="[14] Gerar Relatório Forense Completo (.TXT)" Width="290" Height="34" Background="#313244" Foreground="#89B4FA"/>
+                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="190" Height="34"/>
+                                <Button Name="btnOptimizeTcpTab" Content="🚀 Otimizar TCP Baixa Latência" Width="220" Height="34"/>
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Troca Rápida de Servidores DNS">
+                            <WrapPanel>
+                                <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="200" Height="34"/>
+                                <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confiável" Width="200" Height="34"/>
+                                <Button Name="btnDnsQuad9" Content="Quad9 (9.9.9.9) - Anti-Malware" Width="210" Height="34"/>
+                                <Button Name="btnDnsAdGuard" Content="AdGuard - Bloqueia Anúncios" Width="200" Height="34"/>
+                                <Button Name="btnDnsDhcp" Content="Restaurar Automático (DHCP)" Width="200" Height="34"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>

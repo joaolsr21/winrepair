@@ -82,9 +82,547 @@ function Write-ToolLog {
 
 
 # ==============================================================================
-# Módulo Avançado: Diagnóstico, Otimizações e Reparo de Rede / Internet
+# Módulo Avançado: Diagnóstico Completo, Varredura, Otimizações e Reparo de Rede
 # ==============================================================================
 
+function Invoke-OemTool {
+    param(
+        [Parameter(Mandatory=$true)][string]$FilePath,
+        [string]$Arguments = "",
+        [switch]$StreamToLog
+    )
+
+    $oemCodePage = [System.Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.Arguments = $Arguments
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $psi.StandardOutputEncoding = [System.Text.Encoding]::GetEncoding($oemCodePage)
+    $psi.StandardErrorEncoding = [System.Text.Encoding]::GetEncoding($oemCodePage)
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $lines = New-Object System.Collections.Generic.List[string]
+
+    while (-not $proc.StandardOutput.EndOfStream) {
+        $line = $proc.StandardOutput.ReadLine()
+        [void]$lines.Add($line)
+        if ($StreamToLog -and -not [string]::IsNullOrWhiteSpace($line)) {
+            Write-ToolLog $line "INFO"
+        }
+    }
+
+    $err = $proc.StandardError.ReadToEnd()
+    $proc.WaitForExit()
+    if (-not [string]::IsNullOrWhiteSpace($err)) {
+        foreach ($el in ($err -split "`r?`n")) {
+            if (-not [string]::IsNullOrWhiteSpace($el)) {
+                [void]$lines.Add($el)
+                if ($StreamToLog) { Write-ToolLog $el "WARN" }
+            }
+        }
+    }
+
+    return ($lines -join "`r`n")
+}
+
+# --- [1] Diagnóstico Rápido Integrado ---
+function Invoke-QuickIntegratedNetworkDiag {
+    Write-ToolLog "=== [1] DIAGN$([char]0xD3)STICO RÁPIDO INTEGRADO ===" "INFO"
+
+    Write-ToolLog "1. Testando placa de rede interna [Loopback 127.0.0.1]..." "INFO"
+    if (Test-Connection -ComputerName "127.0.0.1" -Count 2 -Quiet) {
+        Write-ToolLog "  [OK] Hardware de rede local respondendo perfeitamente." "SUCCESS"
+    } else {
+        Write-ToolLog "  [FALHA CRÍTICA] Placa de rede local ou pilha TCP/IP com defeito." "ERROR"
+    }
+
+    Write-ToolLog "2. Identificando Gateway Padrão [Roteador Local]..." "INFO"
+    $gw = (Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1).NextHop
+    if ($gw) {
+        Write-ToolLog "  Gateway identificado: $gw" "INFO"
+        if (Test-Connection -ComputerName $gw -Count 2 -Quiet) {
+            Write-ToolLog "  [OK] Comunicação com o Roteador Local: 100% operacional." "SUCCESS"
+        } else {
+            Write-ToolLog "  [FALHA] Roteador não respondeu aos pacotes de teste." "ERROR"
+        }
+    } else {
+        Write-ToolLog "  [FALHA] Nenhum Gateway Padrão localizado. Cabo desconectado ou sem DHCP." "ERROR"
+    }
+
+    Write-ToolLog "3. Testando conexão direta com a Internet [8.8.8.8 e 1.1.1.1]..." "INFO"
+    if (Test-Connection -ComputerName "8.8.8.8" -Count 2 -Quiet) {
+        Write-ToolLog "  [OK] Acesso à Internet funcional - Google DNS [8.8.8.8] respondeu." "SUCCESS"
+    } elseif (Test-Connection -ComputerName "1.1.1.1" -Count 2 -Quiet) {
+        Write-ToolLog "  [OK] Acesso à Internet funcional - Cloudflare [1.1.1.1] respondeu." "SUCCESS"
+    } else {
+        Write-ToolLog "  [FALHA] Sem comunicação direta com a Internet via pacotes IP." "ERROR"
+    }
+
+    Write-ToolLog "4. Testando Resolução de Nomes [DNS - google.com]..." "INFO"
+    try {
+        $null = [System.Net.Dns]::GetHostAddresses("google.com")
+        Write-ToolLog "  [OK] Servidores DNS resolvendo nomes perfeitamente." "SUCCESS"
+    } catch {
+        Write-ToolLog "  [FALHA] Servidor DNS falhou ao traduzir nomes de domínio." "ERROR"
+    }
+    Write-ToolLog "=== DIAGN$([char]0xD3)STICO RÁPIDO CONCLUÍDO ===" "SUCCESS"
+}
+
+# --- [2] Teste Detalhado de Conexão com a Internet ---
+function Invoke-DetailedInternetTest {
+    Write-ToolLog "=== [2] TESTE DETALHADO DE CONECTIVIDADE ===" "INFO"
+
+    Write-ToolLog "1. Testando pacotes ICMP [Ping]..." "INFO"
+    foreach ($ip in @("8.8.8.8", "1.1.1.1")) {
+        $pings = Test-Connection -ComputerName $ip -Count 3 -ErrorAction SilentlyContinue
+        if ($pings) {
+            $avg = [math]::Round(($pings | Measure-Object ResponseTime -Average).Average, 1)
+            $loss = [math]::Round(((3 - $pings.Count) / 3) * 100, 1)
+            Write-ToolLog "  Host $ip -> Latência Média: ${avg} ms | Perda: ${loss}%" "SUCCESS"
+        } else {
+            Write-ToolLog "  Host $ip -> Sem resposta (100% perda)." "ERROR"
+        }
+    }
+
+    Write-ToolLog "2. Testando comunicação Web Segura [HTTPS Porta 443]..." "INFO"
+    try {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("User-Agent", "Mozilla/5.0")
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $null = $wc.DownloadString("https://www.google.com")
+        $sw.Stop()
+        Write-ToolLog "  [OK] Conexão HTTPS ativa e respondendo em $($sw.ElapsedMilliseconds) ms." "SUCCESS"
+    } catch {
+        Write-ToolLog "  [FALHA] Não foi possível carregar conteúdo Web seguro: $_" "ERROR"
+    }
+
+    Write-ToolLog "3. Testando Resolução de Servidores DNS..." "INFO"
+    foreach ($dom in @("google.com", "registro.br")) {
+        try {
+            $ips = [System.Net.Dns]::GetHostAddresses($dom) | Select-Object -First 2
+            Write-ToolLog "  [OK] Domínio [$dom] resolvido ($($ips.IPAddressToString -join ', '))." "SUCCESS"
+        } catch {
+            Write-ToolLog "  [FALHA] Falha na resolução de [$dom]." "WARN"
+        }
+    }
+}
+
+# --- [3] Teste Rápido de Velocidade de Download ---
+function Invoke-DownloadSpeedTest {
+    Write-ToolLog "=== [3] TESTE DE VELOCIDADE DE DOWNLOAD (CLOUDFLARE CDN) ===" "INFO"
+    Write-ToolLog "Baixando bloco de medição de 5 MB direto do Cloudflare... Aguarde..." "INFO"
+    $tempFile = Join-Path $env:TEMP "winrepair_speedtest.bin"
+    try {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls13
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("User-Agent", "Mozilla/5.0")
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $wc.DownloadFile("https://speed.cloudflare.com/__down?bytes=5000000", $tempFile)
+        $sw.Stop()
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+
+        $sec = $sw.ElapsedMilliseconds / 1000.0
+        if ($sec -le 0) { $sec = 0.001 }
+        $mbps = [math]::Round((5 * 8) / $sec, 2)
+        Write-ToolLog "  [OK] Taxa estimada de Download: $mbps Mbps (tempo: $([math]::Round($sec, 2))s)" "SUCCESS"
+    } catch {
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        Write-ToolLog "  [FALHA] Não foi possível concluir o teste de velocidade: $_" "ERROR"
+    }
+}
+
+# --- [4] Diagnóstico de Wi-Fi ---
+function Invoke-WifiDiagnostics {
+    param([bool]$GenerateHtmlReport = $false)
+    Write-ToolLog "=== [4] DIAGN$([char]0xD3)STICO DE REDE SEM FIO (WI-FI) ===" "INFO"
+
+    Write-ToolLog "--- Status da Interface Wi-Fi Atual ---" "INFO"
+    Invoke-OemTool -FilePath "netsh.exe" -Arguments "wlan show interfaces" -StreamToLog | Out-Null
+
+    Write-ToolLog "--- Redes Disponíveis ao Redor (Canais e Sinal) ---" "INFO"
+    Invoke-OemTool -FilePath "netsh.exe" -Arguments "wlan show networks mode=bssid" -StreamToLog | Out-Null
+
+    if ($GenerateHtmlReport) {
+        Write-ToolLog "Gerando relatório histórico de eventos WLAN da Microsoft (HTML)..." "INFO"
+        Invoke-OemTool -FilePath "netsh.exe" -Arguments "wlan show wlanreport" -StreamToLog | Out-Null
+        $reportHtml = "C:\ProgramData\Microsoft\Windows\WlanReport\wlan-report-latest.html"
+        if (Test-Path $reportHtml) {
+            Write-ToolLog "Relatório HTML gerado em: $reportHtml" "SUCCESS"
+            Start-Process $reportHtml
+        }
+    }
+}
+
+# --- [5] Testar Porta TCP Específica ---
+function Test-SpecificTcpPort {
+    param(
+        [Parameter(Mandatory=$true)][string]$TargetHost,
+        [Parameter(Mandatory=$true)][int]$Port
+    )
+
+    Write-ToolLog "=== [5] TESTE DE PORTA TCP ===" "INFO"
+    Write-ToolLog "Testando comunicação com [$TargetHost] na porta TCP [$Port]..." "INFO"
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $async = $client.BeginConnect($TargetHost, $Port, $null, $null)
+        if ($async.AsyncWaitHandle.WaitOne(3000, $false) -and $client.Connected) {
+            $client.EndConnect($async)
+            Write-ToolLog "  [SUCESSO] Porta $Port em $TargetHost está ABERTA e acessível!" "SUCCESS"
+        } else {
+            Write-ToolLog "  [FALHA] Porta $Port em $TargetHost está FECHADA ou bloqueada por Firewall!" "WARN"
+        }
+    } catch {
+        Write-ToolLog "  [FALHA] Erro ao conectar na porta $Port em $TargetHost`: $_" "ERROR"
+    } finally {
+        $client.Close()
+    }
+}
+
+# --- [6] Análise de Perda de Pacotes (Pathping) ---
+function Invoke-PathpingAnalysis {
+    param([string]$TargetHost = "8.8.8.8")
+    if ([string]::IsNullOrWhiteSpace($TargetHost)) { $TargetHost = "8.8.8.8" }
+    Write-ToolLog "=== [6] ANÁLISE DE PERDA DE PACOTES (PATHPING) ===" "INFO"
+    Write-ToolLog "Iniciando pathping em $TargetHost (pode levar 30-90s)... Aguarde..." "INFO"
+    Invoke-OemTool -FilePath "pathping.exe" -Arguments "-n -q 10 $TargetHost" -StreamToLog | Out-Null
+    Write-ToolLog "Análise Pathping concluída." "SUCCESS"
+}
+
+# --- [7] Rastrear Rota (Tracert) ---
+function Invoke-TracertAnalysis {
+    param([string]$TargetHost = "1.1.1.1")
+    if ([string]::IsNullOrWhiteSpace($TargetHost)) { $TargetHost = "1.1.1.1" }
+    Write-ToolLog "=== [7] RASTREAMENTO DE ROTA (TRACERT) ===" "INFO"
+    Write-ToolLog "Rastreando rota até $TargetHost (limite 15 saltos)..." "INFO"
+    Invoke-OemTool -FilePath "tracert.exe" -Arguments "-d -h 15 $TargetHost" -StreamToLog | Out-Null
+    Write-ToolLog "Rastreamento Tracert concluído." "SUCCESS"
+}
+
+# --- [8] Teste Contínuo de Estabilidade (Ping -t) ---
+function Start-ContinuousPingWindow {
+    param([string]$TargetHost = "8.8.8.8")
+    if ([string]::IsNullOrWhiteSpace($TargetHost)) { $TargetHost = "8.8.8.8" }
+    Write-ToolLog "Abrindo janela dedicada de Ping contínuo (-t) para $TargetHost..." "INFO"
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k title Ping Continuo: $TargetHost && color 0F && echo Pressione CTRL+C para interromper o teste. && ping $TargetHost -t"
+}
+
+# --- [9] Conexões Ativas e Portas Escutando (Netstat) ---
+function Get-ActiveConnectionsNetstat {
+    param(
+        [ValidateSet("Established", "Listening", "All")]
+        [string]$Mode = "Established"
+    )
+
+    Write-ToolLog "=== [9] CONEXÕES ATIVAS E PORTAS ($Mode) ===" "INFO"
+    $args = switch ($Mode) {
+        "Established" { "-f" }
+        "Listening"   { "-ano" }
+        "All"         { "-ano" }
+    }
+
+    $output = Invoke-OemTool -FilePath "netstat.exe" -Arguments $args
+    $lines = $output -split "`r?`n"
+    foreach ($l in $lines) {
+        if ($Mode -eq "Established" -and $l -match "ESTABLISHED") {
+            Write-ToolLog $l "INFO"
+        } elseif ($Mode -eq "Listening" -and $l -match "LISTENING") {
+            Write-ToolLog $l "INFO"
+        } elseif ($Mode -eq "All" -and -not [string]::IsNullOrWhiteSpace($l)) {
+            Write-ToolLog $l "INFO"
+        }
+    }
+    Write-ToolLog "Consulta Netstat concluída." "SUCCESS"
+}
+
+# --- [10] Varredura Completa da Rede Local (IPs Ocupados e Livres) ---
+function Invoke-LocalSubnetScan {
+    param([bool]$SaveAndOpenReport = $true)
+
+    Write-ToolLog "=== [10] VARREDURA COMPLETA DA REDE LOCAL (SUB-REDE IPv4) ===" "INFO"
+    Write-ToolLog "Identificando sub-rede e disparando varredura paralela..." "INFO"
+
+    try {
+        $ipObj = Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback' -and $_.IPAddress -notlike '169.254*' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1
+        if (-not $ipObj) {
+            Write-ToolLog "Nenhum endereço IPv4 local válido encontrado." "ERROR"
+            return
+        }
+
+        $gw = (Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Select-Object -First 1).NextHop
+        $localIP = $ipObj.IPAddress
+        $ipBytes = [System.Net.IPAddress]::Parse($localIP).GetAddressBytes()
+        if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($ipBytes) }
+        $ipInt = [BitConverter]::ToUInt32($ipBytes, 0)
+        $prefixLen = $ipObj.PrefixLength
+
+        # Limitar varredura paralela a /22 (1022 hosts) para evitar travamento em máscaras muito grandes
+        if ($prefixLen -lt 22) {
+            Write-ToolLog "Máscara /$prefixLen detectada (muito ampla). Limitando varredura à faixa /24 local para segurança." "WARN"
+            $prefixLen = 24
+        }
+
+        $maskInt = [uint32]([Convert]::ToUInt64(('1' * $prefixLen + '0' * (32 - $prefixLen)), 2))
+        $netInt = $ipInt -band $maskInt
+        $bcastInt = $netInt -bor (-bnot $maskInt)
+        $firstHostInt = $netInt + 1
+        $lastHostInt = $bcastInt - 1
+
+        function Convert-UInt32ToIP([uint32]$val) {
+            $b = [BitConverter]::GetBytes($val)
+            if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($b) }
+            return [System.Net.IPAddress]::new($b).ToString()
+        }
+
+        $firstIP = Convert-UInt32ToIP $firstHostInt
+        $lastIP = Convert-UInt32ToIP $lastHostInt
+        $totalHosts = $lastHostInt - $firstHostInt + 1
+
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $allIPs = for ($i = $firstHostInt; $i -le $lastHostInt; $i++) { Convert-UInt32ToIP $i }
+        $tasks = foreach ($target in $allIPs) {
+            $ping = New-Object System.Net.NetworkInformation.Ping
+            $ping.SendPingAsync($target, 350)
+        }
+        [Threading.Tasks.Task]::WaitAll($tasks)
+        $sw.Stop()
+
+        $arpOutput = Invoke-OemTool -FilePath "arp.exe" -Arguments "-a"
+        $arpLines = $arpOutput -split "`r?`n"
+        $usedSet = New-Object 'System.Collections.Generic.HashSet[uint32]'
+        $devices = @()
+
+        foreach ($line in $arpLines) {
+            $p = ($line.Trim() -split '\s+')
+            if ($p.Count -ge 3 -and $p[0] -match '^\d+\.\d+\.\d+\.\d+$') {
+                try {
+                    $b = [System.Net.IPAddress]::Parse($p[0]).GetAddressBytes()
+                    if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($b) }
+                    $val = [BitConverter]::ToUInt32($b, 0)
+                    if ($val -ge $firstHostInt -and $val -le $lastHostInt) {
+                        $mac = $p[1]
+                        if ($mac -notlike 'ff*' -and $mac -notlike '01-00-5e*' -and $mac -notlike '224*' -and $mac -notlike '239*') {
+                            if ($usedSet.Add($val)) {
+                                $tag = 'Ativo'
+                                if ($p[0] -eq $gw) { $tag = 'Gateway/Roteador' }
+                                if ($p[0] -eq $localIP) { $tag = 'Este Computador' }
+                                $cleanTipo = if ($p[2] -match 'din') { 'Dinamico' } elseif ($p[2] -match 'est') { 'Estatico' } else { $p[2] }
+                                $devices += [PSCustomObject]@{ Val = $val; Row = ("{0,-18} {1,-20} {2,-12} {3}" -f $p[0], $mac.ToUpper(), $cleanTipo, $tag) }
+                            }
+                        }
+                    }
+                } catch {}
+            }
+        }
+
+        try {
+            $locBytes = [System.Net.IPAddress]::Parse($localIP).GetAddressBytes()
+            if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($locBytes) }
+            $null = $usedSet.Add([BitConverter]::ToUInt32($locBytes, 0))
+        } catch {}
+
+        $totalUsed = $usedSet.Count
+        $totalFree = $totalHosts - $totalUsed
+        $pctUsed = [math]::Round(($totalUsed / $totalHosts) * 100, 1)
+        $pctFree = [math]::Round(($totalFree / $totalHosts) * 100, 1)
+
+        $freeRanges = @()
+        $freeIndividual = @()
+        $rangeStart = $null
+        $rangeCount = 0
+
+        for ($i = $firstHostInt; $i -le $lastHostInt; $i++) {
+            if (-not $usedSet.Contains($i)) {
+                $freeIndividual += Convert-UInt32ToIP $i
+                if ($null -eq $rangeStart) { $rangeStart = $i; $rangeCount = 1 } else { $rangeCount++ }
+            } else {
+                if ($null -ne $rangeStart) {
+                    $sIP = Convert-UInt32ToIP $rangeStart
+                    $eIP = Convert-UInt32ToIP ($rangeStart + $rangeCount - 1)
+                    $desc = if ($rangeCount -eq 1) { "$sIP" } else { "$sIP até $eIP" }
+                    $freeRanges += ("{0,-38} {1,-15}" -f $desc, "$rangeCount IP(s) livres")
+                    $rangeStart = $null; $rangeCount = 0
+                }
+            }
+        }
+        if ($null -ne $rangeStart) {
+            $sIP = Convert-UInt32ToIP $rangeStart
+            $eIP = Convert-UInt32ToIP ($rangeStart + $rangeCount - 1)
+            $desc = if ($rangeCount -eq 1) { "$sIP" } else { "$sIP até $eIP" }
+            $freeRanges += ("{0,-38} {1,-15}" -f $desc, "$rangeCount IP(s) livres")
+        }
+
+        $hdr = "==============================================================================="
+        $sumLines = @(
+            $hdr,
+            "               RESUMO DE OCUPAÇÃO DA SUB-REDE (IPv4)",
+            $hdr,
+            "  Máscara Detectada:        /$prefixLen",
+            "  Faixa Total da Rede:      $firstIP até $lastIP",
+            "  Total de IPs Usáveis:     $totalHosts endereços",
+            "  IPs Ocupados (Em Uso):    $totalUsed ($pctUsed%)",
+            "  IPs Livres (Disponíveis): $totalFree ($pctFree%)",
+            "  Tempo de Varredura:       $([math]::Round($sw.ElapsedMilliseconds/1000, 2)) segundos",
+            $hdr
+        )
+
+        foreach ($sl in $sumLines) { Write-ToolLog $sl "INFO" }
+
+        $colUsed = "{0,-18} {1,-20} {2,-12} {3}" -f "ENDEREÇO IP", "ENDEREÇO MAC", "TIPO", "STATUS"
+        $sorted = $devices | Sort-Object Val
+        $usedOut = @($hdr, "DISPOSITIVOS OCUPADOS / EM USO ($totalUsed encontrados)", $hdr, $colUsed, $hdr) + ($sorted | ForEach-Object { $_.Row }) + @($hdr)
+
+        Write-ToolLog "--- Dispositivos Ocupados ---" "INFO"
+        foreach ($u in $sorted) { Write-ToolLog ("  " + $u.Row) "SUCCESS" }
+
+        Write-ToolLog "--- Faixas de IPs Livres ---" "INFO"
+        foreach ($fr in $freeRanges) { Write-ToolLog ("  " + $fr) "INFO" }
+
+        if ($SaveAndOpenReport) {
+            $colFree = "{0,-38} {1,-15}" -f "FAIXA / BLOCO DISPONÍVEL", "QUANTIDADE"
+            $rangesOut = @($hdr, "FAIXAS E BLOCOS DE IPs LIVRES ($($freeRanges.Count) blocos - $totalFree IPs livres)", $hdr, $colFree, $hdr) + $freeRanges + @($hdr)
+            $allFreeOut = @($hdr, "LISTA COMPLETA DE IPs LIVRES INDIVIDUAIS ($totalFree IPs disponíveis)", $hdr) + $freeIndividual + @($hdr)
+            $fullReport = $sumLines + @("", "") + $rangesOut + @("", "") + $usedOut + @("", "") + $allFreeOut
+
+            $desktopPath = [Environment]::GetFolderPath("Desktop")
+            $reportFile = Join-Path $desktopPath "Relatorio_IPs_Rede_Local.txt"
+            [System.IO.File]::WriteAllLines($reportFile, $fullReport, [System.Text.Encoding]::UTF8)
+            Write-ToolLog "Relatório completo de IPs salvo na Área de Trabalho: $reportFile" "SUCCESS"
+            Start-Process notepad.exe -ArgumentList "`"$reportFile`""
+        }
+    } catch {
+        Write-ToolLog "Erro durante varredura da rede local: $_" "ERROR"
+    }
+}
+
+# --- [11] Exibir Configurações de IP e DNS (ipconfig /all) ---
+function Get-IpConfigAllDetails {
+    Write-ToolLog "=== [11] CONFIGURAÇÕES DE IP E DNS (ipconfig /all) ===" "INFO"
+    Invoke-OemTool -FilePath "ipconfig.exe" -Arguments "/all" -StreamToLog | Out-Null
+    Write-ToolLog "=== FIM DO IPCONFIG ===" "SUCCESS"
+}
+
+# --- [12] Reparar Conexão (FlushDNS, Renew IP e NetBIOS) ---
+function Invoke-SimpleNetworkRepair {
+    Write-ToolLog "=== [12] REPARO SIMPLES DE CONEXÃO ===" "INFO"
+    try {
+        Write-ToolLog "1. Limpando cache do Resolvedor de DNS..." "INFO"
+        Clear-DnsClientCache
+        ipconfig /flushdns | Out-Null
+
+        Write-ToolLog "2. Liberando e renovando concessão DHCP..." "INFO"
+        ipconfig /release | Out-Null
+        Start-Sleep -Milliseconds 800
+        ipconfig /renew | Out-Null
+
+        Write-ToolLog "3. Limpando cache NetBIOS (nbtstat -R)..." "INFO"
+        nbtstat -R | Out-Null
+
+        Write-ToolLog "Cache limpo e endereço IP renovado com sucesso!" "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao reparar conexão: $_" "ERROR"
+    }
+}
+
+# --- [13] Reset Completo da Pilha de Rede (Winsock, TCP/IP, Proxy, ARP e Firewall) ---
+function Invoke-ResetNetworkStack {
+    Write-ToolLog "=== [13] RESET COMPLETO DA PILHA DE REDE ===" "INFO"
+    try {
+        Write-ToolLog "1. Redefinindo Catálogo Winsock..." "INFO"
+        netsh winsock reset | Out-Null
+        Write-ToolLog "2. Redefinindo Pilha TCP/IP (IPv4 e IPv6)..." "INFO"
+        netsh int ip reset | Out-Null
+        netsh int ipv6 reset | Out-Null
+        Write-ToolLog "3. Redefinindo Configurações de Proxy WinHTTP..." "INFO"
+        netsh winhttp reset proxy | Out-Null
+        Write-ToolLog "4. Limpando tabela ARP..." "INFO"
+        netsh interface ip delete arpcache | Out-Null
+        Write-ToolLog "5. Redefinindo Firewall do Windows..." "INFO"
+        netsh advfirewall reset | Out-Null
+
+        Write-ToolLog "Pilha de rede reinicializada de fábrica. Recomenda-se reiniciar o computador." "SUCCESS"
+    } catch {
+        Write-ToolLog "Erro ao redefinir pilha de rede: $_" "ERROR"
+    }
+}
+
+# --- [14] Gerar Relatório Forense Completo de Rede (.TXT) ---
+function Export-ForensicNetworkReport {
+    Write-ToolLog "=== [14] GERANDO RELAT$([char]0xD3)RIO FORENSE COMPLETO DE REDE ===" "INFO"
+    Write-ToolLog "Coletando dados de adaptadores, rotas, Wi-Fi, ARP, conexões, ping, DNS e tracert..." "INFO"
+
+    try {
+        $dt = (Get-Date).ToString("yyyy-MM-dd_HH-mm-ss")
+        $desktopPath = [Environment]::GetFolderPath("Desktop")
+        $reportFile = Join-Path $desktopPath "Relatorio_Rede_${env:COMPUTERNAME}_${dt}.txt"
+
+        $sb = New-Object System.Text.StringBuilder
+        $sep = "==============================================================================="
+
+        [void]$sb.AppendLine($sep)
+        [void]$sb.AppendLine("                    RELAT$([char]0xD3)RIO COMPLETO DE DIAGN$([char]0xD3)STICO DE REDE")
+        [void]$sb.AppendLine("Data e Hora: $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))")
+        [void]$sb.AppendLine("Estação: $($env:COMPUTERNAME) | Usuário: $($env:USERNAME)")
+        [void]$sb.AppendLine($sep)
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[1/8] Coletando adaptadores e configurações de IP..." "INFO"
+        [void]$sb.AppendLine("--- 1. CONFIGURAÇÕES DE IP / ADAPTADORES ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "ipconfig.exe" -Arguments "/all"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[2/8] Coletando tabela de roteamento IPv4..." "INFO"
+        [void]$sb.AppendLine("--- 2. TABELA DE ROTEAMENTO IPV4 ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "route.exe" -Arguments "print -4"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[3/8] Coletando status das interfaces Wi-Fi..." "INFO"
+        [void]$sb.AppendLine("--- 3. STATUS DAS INTERFACES WI-FI ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "netsh.exe" -Arguments "wlan show interfaces"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[4/8] Coletando tabela ARP local..." "INFO"
+        [void]$sb.AppendLine("--- 4. TABELA ARP LOCAL ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "arp.exe" -Arguments "-a"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[5/8] Coletando conexões ativas..." "INFO"
+        [void]$sb.AppendLine("--- 5. CONEXÕES DE REDE ATIVAS (ESTABLISHED) ---")
+        $netOut = (Invoke-OemTool -FilePath "netstat.exe" -Arguments "-ano") -split "`r?`n" | Where-Object { $_ -match "ESTABLISHED" }
+        [void]$sb.AppendLine(($netOut -join "`r`n"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[6/8] Testando conectividade (Google e Cloudflare)..." "INFO"
+        [void]$sb.AppendLine("--- 6. TESTE DE CONECTIVIDADE GOOGLE (8.8.8.8) ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "ping.exe" -Arguments "-n 4 8.8.8.8"))
+        [void]$sb.AppendLine("")
+        [void]$sb.AppendLine("--- 7. TESTE DE CONECTIVIDADE CLOUDFLARE (1.1.1.1) ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "ping.exe" -Arguments "-n 4 1.1.1.1"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[7/8] Testando resolução DNS..." "INFO"
+        [void]$sb.AppendLine("--- 8. TESTE DE RESOLUÇÃO DE DNS ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "nslookup.exe" -Arguments "google.com"))
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "nslookup.exe" -Arguments "microsoft.com"))
+        [void]$sb.AppendLine("")
+
+        Write-ToolLog "[8/8] Rastreando rota até a internet (8.8.8.8)..." "INFO"
+        [void]$sb.AppendLine("--- 9. ROTA COMPLETA ATÉ A INTERNET ---")
+        [void]$sb.AppendLine((Invoke-OemTool -FilePath "tracert.exe" -Arguments "-d -h 12 8.8.8.8"))
+
+        [System.IO.File]::WriteAllText($reportFile, $sb.ToString(), [System.Text.Encoding]::UTF8)
+        Write-ToolLog "Relatório forense salvo na Área de Trabalho: $reportFile" "SUCCESS"
+        Start-Process notepad.exe -ArgumentList "`"$reportFile`""
+    } catch {
+        Write-ToolLog "Erro ao gerar relatório forense: $_" "ERROR"
+    }
+}
+
+# --- Auxiliares extras de Rede & Gaming ---
 function Invoke-FlushDns {
     Write-ToolLog "Limpando o cache do resolvedor DNS..." "INFO"
     try {
@@ -92,19 +630,6 @@ function Invoke-FlushDns {
         Write-ToolLog "Cache DNS limpo com sucesso." "SUCCESS"
     } catch {
         Write-ToolLog "Falha ao limpar cache DNS: $_" "ERROR"
-    }
-}
-
-function Invoke-ResetNetworkStack {
-    Write-ToolLog "Iniciando redefinição profunda da pilha TCP/IP e Winsock..." "INFO"
-    try {
-        netsh winsock reset | Out-Null
-        netsh int ip reset | Out-Null
-        netsh int ipv6 reset | Out-Null
-        netsh advfirewall reset | Out-Null
-        Write-ToolLog "Winsock, IPv4, IPv6 e Firewall redefinidos para os padrões de fábrica." "SUCCESS"
-    } catch {
-        Write-ToolLog "Erro ao redefinir pilha de rede: $_" "ERROR"
     }
 }
 
@@ -129,8 +654,8 @@ function Set-QuickDnsProvider {
     $dnsServers = switch ($Provider) {
         "Cloudflare" { @("1.1.1.1", "1.0.0.1") }
         "Google"     { @("8.8.8.8", "8.8.4.4") }
-        "Quad9"      { @("9.9.9.9", "149.112.112.112") }     # Foco em Segurança/Bloqueio de Malware
-        "AdGuard"    { @("94.140.14.14", "94.140.15.15") }   # Foco em Bloqueio de Anúncios e Rastreadores
+        "Quad9"      { @("9.9.9.9", "149.112.112.112") }
+        "AdGuard"    { @("94.140.14.14", "94.140.15.15") }
         "DHCP"       { $null }
     }
 
@@ -158,24 +683,11 @@ function Set-QuickDnsProvider {
 function Optimize-TcpLatencyAndThroughput {
     Write-ToolLog "Aplicando otimizações avançadas na pilha TCP/IP (Baixa Latência & Alto Rendimento)..." "INFO"
     try {
-        # 1. Habilitar ajuste automático de janela TCP
         netsh int tcp set global autotuninglevel=normal | Out-Null
-        Write-ToolLog "TCP Auto-Tuning configurado para Normal." "INFO"
-
-        # 2. Habilitar RSS (Receive Side Scaling) para distribuir pacotes de rede entre os núcleos da CPU
         netsh int tcp set global rss=enabled | Out-Null
-        Write-ToolLog "RSS (Receive Side Scaling) habilitado." "INFO"
-
-        # 3. Habilitar ECN (Explicit Congestion Notification)
         netsh int tcp set global ecncapability=enabled | Out-Null
-        Write-ToolLog "ECN (Explicit Congestion Notification) habilitado." "INFO"
+        try { netsh int tcp set supplemental template=custom congestionprovider=ctcp | Out-Null } catch {}
 
-        # 4. Configurar algoritmo de congestionamento TCP para CTCP ou CUBIC (se disponível)
-        try {
-            netsh int tcp set supplemental template=custom congestionprovider=ctcp | Out-Null
-        } catch {}
-
-        # 5. Ajustes de Registro: Desativar Limitação de Rede (Network Throttling Index) e Acelerar ACK
         $gamingNetKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile"
         if (Test-Path $gamingNetKey) {
             Set-ItemProperty -Path $gamingNetKey -Name "NetworkThrottlingIndex" -Value 0xFFFFFFFF -Type DWord -Force
@@ -185,33 +697,6 @@ function Optimize-TcpLatencyAndThroughput {
         Write-ToolLog "Otimizações de latência e taxa de transferência TCP aplicadas com sucesso!" "SUCCESS"
     } catch {
         Write-ToolLog "Erro ao otimizar TCP/IP: $_" "ERROR"
-    }
-}
-
-function Test-NetworkQuality {
-    Write-ToolLog "Iniciando diagnóstico rápido de qualidade da conexão..." "INFO"
-    try {
-        $targets = @("1.1.1.1", "8.8.8.8")
-        foreach ($target in $targets) {
-            $ping = Test-Connection -ComputerName $target -Count 4 -ErrorAction SilentlyContinue
-            if ($ping) {
-                $avgLatency = [math]::Round(($ping | Measure-Object -Property ResponseTime -Average).Average, 1)
-                $packetLoss = [math]::Round(((4 - $ping.Count) / 4) * 100, 1)
-                Write-ToolLog "Destino: $target | Latência Média: ${avgLatency}ms | Perda de Pacotes: ${packetLoss}%" "INFO"
-            } else {
-                Write-ToolLog "Falha de comunicação com o host $target." "WARN"
-            }
-        }
-
-        # Obter IP Externo
-        try {
-            $publicIp = (Invoke-RestMethod -Uri "https://api.ipify.org" -TimeoutSec 3).Trim()
-            Write-ToolLog "Endereço IP Público: $publicIp" "SUCCESS"
-        } catch {
-            Write-ToolLog "Não foi possível obter o IP público externo." "INFO"
-        }
-    } catch {
-        Write-ToolLog "Erro no diagnóstico de rede: $_" "ERROR"
     }
 }
 
@@ -1524,7 +2009,7 @@ Add-Type -AssemblyName System.Windows.Forms
             <RowDefinition Height="160"/>
         </Grid.RowDefinitions>
 
-        <!-- Cabeçalho Principal -->
+        <!-- Cabe&#xE7;alho Principal -->
         <Border Grid.Row="0" Background="#1E1E2E" CornerRadius="8" Padding="14,10" Margin="0,0,0,8" BorderBrush="#313244" BorderThickness="1">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -1532,11 +2017,11 @@ Add-Type -AssemblyName System.Windows.Forms
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="⚡ WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimizações, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="&#x26A1; WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
+                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimiza&#xE7;&#xF5;es, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Name="txtSystemInfo" Text="Identificando máquina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
+                    <TextBlock Name="txtSystemInfo" Text="Identificando m&#xE1;quina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1545,7 +2030,7 @@ Add-Type -AssemblyName System.Windows.Forms
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             
             <!-- ABA 1: TWEAKS & PERFIS (ESTILO WINUTIL TWEAKS) -->
-            <TabItem Header="⚡ Tweaks &amp; Otimização">
+            <TabItem Header="&#x26A1; Tweaks &amp; Otimiza&#xE7;&#xE3;o">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
                         <!-- Barra de Perfis com 1 Clique -->
@@ -1558,11 +2043,11 @@ Add-Type -AssemblyName System.Windows.Forms
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Perfis Recomendados (1 Clique):" FontWeight="Bold" Foreground="#89B4FA" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <Button Name="btnProfileDesktop" Content="🖥️ Perfil Desktop" Padding="12,6" Background="#313244" Foreground="#A6E3A1"/>
-                                    <Button Name="btnProfileLaptop" Content="💻 Perfil Notebook" Padding="12,6" Background="#313244" Foreground="#89B4FA"/>
-                                    <Button Name="btnProfileGamer" Content="🎮 Perfil Gamer Extremo" Padding="12,6" Background="#313244" Foreground="#F38BA8"/>
+                                    <Button Name="btnProfileDesktop" Content="&#x1F5A5;&#xFE0F; Perfil Desktop" Padding="12,6" Background="#313244" Foreground="#A6E3A1"/>
+                                    <Button Name="btnProfileLaptop" Content="&#x1F4BB; Perfil Notebook" Padding="12,6" Background="#313244" Foreground="#89B4FA"/>
+                                    <Button Name="btnProfileGamer" Content="&#x1F3AE; Perfil Gamer Extremo" Padding="12,6" Background="#313244" Foreground="#F38BA8"/>
                                 </WrapPanel>
-                                <Button Name="btnCreateRestorePoint" Grid.Column="2" Content="🛡️ Criar Ponto de Restauração" Padding="10,6" Background="#45475A"/>
+                                <Button Name="btnCreateRestorePoint" Grid.Column="2" Content="&#x1F6E1;&#xFE0F; Criar Ponto de Restaura&#xE7;&#xE3;o" Padding="10,6" Background="#45475A"/>
                             </Grid>
                         </Border>
 
@@ -1577,13 +2062,13 @@ Add-Type -AssemblyName System.Windows.Forms
                             <!-- Coluna 1: Essenciais & Desempenho -->
                             <GroupBox Grid.Column="0" Header="Essenciais &amp; Desempenho">
                                 <StackPanel>
-                                    <CheckBox Name="chkCleanTemp" Content="Limpar Arquivos Temporários" IsChecked="True"/>
+                                    <CheckBox Name="chkCleanTemp" Content="Limpar Arquivos Tempor&#xE1;rios" IsChecked="True"/>
                                     <CheckBox Name="chkDisableTelemetry" Content="Desativar Telemetria &amp; CEIP" IsChecked="True"/>
                                     <CheckBox Name="chkDisableBingSearch" Content="Desativar Bing no Menu Iniciar" IsChecked="True"/>
                                     <CheckBox Name="chkDisableGameDvr" Content="Desativar GameDVR (Input Lag)" IsChecked="True"/>
-                                    <CheckBox Name="chkOptimizeServices" Content="Serviços Pesados em Manual" IsChecked="True"/>
-                                    <CheckBox Name="chkUltimatePower" Content="Plano 'Desempenho Máximo'" IsChecked="True"/>
-                                    <CheckBox Name="chkDisableHibernation" Content="Desativar Hibernação (Desktop)" IsChecked="False"/>
+                                    <CheckBox Name="chkOptimizeServices" Content="Servi&#xE7;os Pesados em Manual" IsChecked="True"/>
+                                    <CheckBox Name="chkUltimatePower" Content="Plano 'Desempenho M&#xE1;ximo'" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableHibernation" Content="Desativar Hiberna&#xE7;&#xE3;o (Desktop)" IsChecked="False"/>
                                     <CheckBox Name="chkFastVisuals" Content="Acelerar Menus (MenuShowDelay)" IsChecked="True"/>
                                     <CheckBox Name="chkSsdTrim" Content="Otimizar SSDs (Executar TRIM)" IsChecked="True"/>
                                 </StackPanel>
@@ -1592,11 +2077,11 @@ Add-Type -AssemblyName System.Windows.Forms
                             <!-- Coluna 2: Interface & Usabilidade -->
                             <GroupBox Grid.Column="1" Header="Interface &amp; Usabilidade">
                                 <StackPanel>
-                                    <CheckBox Name="chkShowFileExt" Content="Mostrar Extensões de Arquivo" IsChecked="True"/>
+                                    <CheckBox Name="chkShowFileExt" Content="Mostrar Extens&#xF5;es de Arquivo" IsChecked="True"/>
                                     <CheckBox Name="chkShowHiddenFiles" Content="Mostrar Arquivos Ocultos" IsChecked="True"/>
                                     <CheckBox Name="chkExplorerThisPc" Content="Explorer abre em 'Este Computador'" IsChecked="True"/>
                                     <CheckBox Name="chkDarkMode" Content="Ativar Tema Escuro (Dark Mode)" IsChecked="True"/>
-                                    <CheckBox Name="chkDisableMouseAccel" Content="Desativar Aceleração do Mouse (1:1)" IsChecked="True"/>
+                                    <CheckBox Name="chkDisableMouseAccel" Content="Desativar Acelera&#xE7;&#xE3;o do Mouse (1:1)" IsChecked="True"/>
                                     <CheckBox Name="chkCleanWin11Taskbar" Content="Limpar Barra Tarefas (Widgets/Copilot)" IsChecked="True"/>
                                     <CheckBox Name="chkTakeOwnership" Content="Adicionar 'Take Ownership' no Menu" IsChecked="True"/>
                                     <CheckBox Name="chkUninstallOneDrive" Content="Desinstalar e Purgar OneDrive" IsChecked="False"/>
@@ -1606,40 +2091,80 @@ Add-Type -AssemblyName System.Windows.Forms
                             <!-- Coluna 3: Rede & TCP Gaming -->
                             <GroupBox Grid.Column="2" Header="Rede &amp; Conectividade">
                                 <StackPanel>
-                                    <CheckBox Name="chkOptimizeTcp" Content="Otimizar Latência TCP (AutoTune, RSS)" IsChecked="True"/>
+                                    <CheckBox Name="chkOptimizeTcp" Content="Otimizar Lat&#xEA;ncia TCP (AutoTune, RSS)" IsChecked="True"/>
                                     <CheckBox Name="chkFlushDns" Content="Limpar Cache DNS" IsChecked="True"/>
-                                    <CheckBox Name="chkRenewDhcp" Content="Renovar Concessão de IP / DHCP" IsChecked="False"/>
+                                    <CheckBox Name="chkRenewDhcp" Content="Renovar Concess&#xE3;o de IP / DHCP" IsChecked="False"/>
                                     <CheckBox Name="chkResetNetwork" Content="Redefinir Pilha de Rede Completa" IsChecked="False"/>
                                 </StackPanel>
                             </GroupBox>
                         </Grid>
 
-                        <!-- Botão Aplicar Selecionados -->
-                        <Button Name="btnApplySelectedTweaks" Content="🚀 Aplicar Todos os Tweaks Selecionados" Height="42" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,8,2,2"/>
+                        <!-- Bot&#xE3;o Aplicar Selecionados -->
+                        <Button Name="btnApplySelectedTweaks" Content="&#x1F680; Aplicar Todos os Tweaks Selecionados" Height="42" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,8,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 2: REDE & DNS -->
-            <TabItem Header="🌐 Rede &amp; Conectividade">
+            <!-- ABA 2: REDE, DIAGN&#xD3;STICO COMPLETO & DNS -->
+            <TabItem Header="&#x1F310; Rede &amp; Conectividade">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="Diagnóstico da Conexão">
+                        <GroupBox Header="Alvo para Testes Avan&#xE7;ados (Porta TCP, Pathping, Tracert e Ping Cont&#xED;nuo)">
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="90"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Host / IP Alvo:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
+                                <TextBox Name="txtNetTarget" Grid.Column="1" Margin="0,0,10,0" Text="8.8.8.8"/>
+                                <TextBlock Grid.Column="2" Text="Porta TCP:" VerticalAlignment="Center" Foreground="#A6ADC8" HorizontalAlignment="Right" Margin="0,0,8,0"/>
+                                <TextBox Name="txtNetPort" Grid.Column="3" Text="443"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <GroupBox Header="Diagn&#xF3;stico e Testes de Conectividade (Op&#xE7;&#xF5;es 1 a 8)">
                             <WrapPanel>
-                                <Button Name="btnTestNetwork" Content="Testar Latência &amp; Perda de Pacotes" Width="260" Height="36"/>
-                                <Button Name="btnFlushDnsTab" Content="Limpar Cache DNS" Width="180" Height="36"/>
-                                <Button Name="btnRenewDhcpTab" Content="Renovar IP / DHCP" Width="180" Height="36"/>
-                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="210" Height="36"/>
+                                <Button Name="btnNetQuickDiag" Content="[1] Diagn&#xF3;stico R&#xE1;pido Integrado" Width="230" Height="34"/>
+                                <Button Name="btnNetDetailed" Content="[2] Teste Detalhado (Ping + HTTPS + DNS)" Width="270" Height="34"/>
+                                <Button Name="btnNetSpeedtest" Content="[3] Teste Velocidade Download (Mbps)" Width="250" Height="34"/>
+                                <Button Name="btnNetWifi" Content="[4] Diagn&#xF3;stico Wi-Fi (Sinal/Redes)" Width="230" Height="34"/>
+                                <Button Name="btnNetWifiReport" Content="[4b] Gerar Relat&#xF3;rio Wi-Fi (HTML)" Width="230" Height="34"/>
+                                <Button Name="btnNetTestPort" Content="[5] Testar Porta TCP Alvo" Width="190" Height="34"/>
+                                <Button Name="btnNetPathping" Content="[6] Perda de Pacotes (Pathping)" Width="220" Height="34"/>
+                                <Button Name="btnNetTracert" Content="[7] Rastrear Rota (Tracert)" Width="200" Height="34"/>
+                                <Button Name="btnNetPingCont" Content="[8] Ping Cont&#xED;nuo (-t)" Width="180" Height="34"/>
                             </WrapPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Troca Rápida de DNS">
+                        <GroupBox Header="Monitoramento, Varredura &amp; Dispositivos (Op&#xE7;&#xF5;es 9 a 11)">
                             <WrapPanel>
-                                <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="210" Height="36"/>
-                                <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confiável" Width="210" Height="36"/>
-                                <Button Name="btnDnsQuad9" Content="Quad9 (9.9.9.9) - Anti-Malware" Width="220" Height="36"/>
-                                <Button Name="btnDnsAdGuard" Content="AdGuard - Bloqueia Anúncios" Width="210" Height="36"/>
-                                <Button Name="btnDnsDhcp" Content="Restaurar Automático (DHCP)" Width="210" Height="36"/>
+                                <Button Name="btnNetstatEst" Content="[9a] Netstat: Conex&#xF5;es Ativas" Width="210" Height="34"/>
+                                <Button Name="btnNetstatList" Content="[9b] Netstat: Portas Escutando" Width="210" Height="34"/>
+                                <Button Name="btnNetstatAll" Content="[9c] Netstat: Tudo Detalhado" Width="200" Height="34"/>
+                                <Button Name="btnNetSubnetScan" Content="[10] Varredura Rede Local (IPs Livres/Ocupados)" Width="310" Height="34" Background="#313244" Foreground="#A6E3A1"/>
+                                <Button Name="btnNetIpConfig" Content="[11] Exibir ipconfig /all" Width="170" Height="34"/>
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Reparo, Reset, Relat&#xF3;rio Forense &amp; Otimiza&#xE7;&#xE3;o TCP (Op&#xE7;&#xF5;es 12 a 14)">
+                            <WrapPanel>
+                                <Button Name="btnNetSimpleRepair" Content="[12] Reparar Conex&#xE3;o (DNS/DHCP/NetBIOS)" Width="270" Height="34"/>
+                                <Button Name="btnNetResetDeep" Content="[13] Reset Completo Pilha (Winsock/TCP/FW)" Width="280" Height="34"/>
+                                <Button Name="btnNetForensicReport" Content="[14] Gerar Relat&#xF3;rio Forense Completo (.TXT)" Width="290" Height="34" Background="#313244" Foreground="#89B4FA"/>
+                                <Button Name="btnRestartAdapters" Content="Reiniciar Placas de Rede" Width="190" Height="34"/>
+                                <Button Name="btnOptimizeTcpTab" Content="&#x1F680; Otimizar TCP Baixa Lat&#xEA;ncia" Width="220" Height="34"/>
+                            </WrapPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Troca R&#xE1;pida de Servidores DNS">
+                            <WrapPanel>
+                                <Button Name="btnDnsCloudflare" Content="Cloudflare (1.1.1.1) - Veloz" Width="200" Height="34"/>
+                                <Button Name="btnDnsGoogle" Content="Google (8.8.8.8) - Confi&#xE1;vel" Width="200" Height="34"/>
+                                <Button Name="btnDnsQuad9" Content="Quad9 (9.9.9.9) - Anti-Malware" Width="210" Height="34"/>
+                                <Button Name="btnDnsAdGuard" Content="AdGuard - Bloqueia An&#xFA;ncios" Width="200" Height="34"/>
+                                <Button Name="btnDnsDhcp" Content="Restaurar Autom&#xE1;tico (DHCP)" Width="200" Height="34"/>
                             </WrapPanel>
                         </GroupBox>
                     </StackPanel>
@@ -1647,21 +2172,21 @@ Add-Type -AssemblyName System.Windows.Forms
             </TabItem>
 
             <!-- ABA 3: RECURSOS & UPDATES (ESTILO WINUTIL CONFIG & UPDATES) -->
-            <TabItem Header="⚙️ Recursos &amp; Updates">
+            <TabItem Header="&#x2699;&#xFE0F; Recursos &amp; Updates">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
                         <GroupBox Header="Gerenciamento do Windows Update (Estilo Chris Titus)">
                             <StackPanel>
-                                <TextBlock Text="Controle como o Windows Update lida com atualizações para evitar travamentos e reinicializações forçadas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
+                                <TextBlock Text="Controle como o Windows Update lida com atualiza&#xE7;&#xF5;es para evitar travamentos e reinicializa&#xE7;&#xF5;es for&#xE7;adas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
                                 <WrapPanel>
-                                    <Button Name="btnWuRecommended" Content="🛡️ Modo Recomendado (Segurança Estável &amp; Sem Reinício Forçado)" Width="460" Height="36"/>
-                                    <Button Name="btnWuDefault" Content="🔄 Restaurar Padrão da Microsoft" Width="240" Height="36"/>
-                                    <Button Name="btnWuPause" Content="⏸️ Pausar Atualizações (Até 2042)" Width="230" Height="36"/>
+                                    <Button Name="btnWuRecommended" Content="&#x1F6E1;&#xFE0F; Modo Recomendado (Seguran&#xE7;a Est&#xE1;vel &amp; Sem Rein&#xED;cio For&#xE7;ado)" Width="460" Height="36"/>
+                                    <Button Name="btnWuDefault" Content="&#x1F504; Restaurar Padr&#xE3;o da Microsoft" Width="240" Height="36"/>
+                                    <Button Name="btnWuPause" Content="&#x23F8;&#xFE0F; Pausar Atualiza&#xE7;&#xF5;es (At&#xE9; 2042)" Width="230" Height="36"/>
                                 </WrapPanel>
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Recursos Opcionais do Windows (Ativação com 1 Clique)">
+                        <GroupBox Header="Recursos Opcionais do Windows (Ativa&#xE7;&#xE3;o com 1 Clique)">
                             <WrapPanel>
                                 <Button Name="btnEnableWsl" Content="Ativar WSL 2 (Subsistema Linux)" Width="240" Height="36"/>
                                 <Button Name="btnEnableSandbox" Content="Ativar Windows Sandbox" Width="210" Height="36"/>
@@ -1674,10 +2199,10 @@ Add-Type -AssemblyName System.Windows.Forms
             </TabItem>
 
             <!-- ABA 4: MICROWIN / CRIADOR DE ISO -->
-            <TabItem Header="💿 MicroWin (Criador de ISO)">
+            <TabItem Header="&#x1F4BF; MicroWin (Criador de ISO)">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="1. Seleção da Imagem ISO Oficial">
+                        <GroupBox Header="1. Sele&#xE7;&#xE3;o da Imagem ISO Oficial">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -1688,11 +2213,11 @@ Add-Type -AssemblyName System.Windows.Forms
                                 <TextBlock Grid.Column="0" Text="Arquivo ISO Origem:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtIsoPath" Grid.Column="1" Margin="0,0,8,0" Text="" ToolTip="Selecione um arquivo .iso oficial do Windows 10 ou 11"/>
                                 <Button Name="btnBrowseIso" Grid.Column="2" Content="Procurar ISO..." Width="120" Height="32"/>
-                                <Button Name="btnInspectIso" Grid.Column="3" Content="Analisar Edições" Width="130" Height="32"/>
+                                <Button Name="btnInspectIso" Grid.Column="3" Content="Analisar Edi&#xE7;&#xF5;es" Width="130" Height="32"/>
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="2. Destino e Edição">
+                        <GroupBox Header="2. Destino e Edi&#xE7;&#xE3;o">
                             <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -1712,28 +2237,28 @@ Add-Type -AssemblyName System.Windows.Forms
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Nome do Arquivo:" VerticalAlignment="Center" Foreground="#A6ADC8"/>
                                 <TextBox Name="txtOutputIsoName" Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" Text="Windows_MicroWin_Custom.iso"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Índice da Edição:" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#A6ADC8" Margin="0,0,6,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="&#xCD;ndice da Edi&#xE7;&#xE3;o:" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#A6ADC8" Margin="0,0,6,0"/>
                                 <TextBox Name="txtEditionIndex" Grid.Row="1" Grid.Column="3" Text="1" Width="50" HorizontalAlignment="Left"/>
                             </Grid>
                         </GroupBox>
 
-                        <GroupBox Header="3. Modificações MicroWin a Injetar">
+                        <GroupBox Header="3. Modifica&#xE7;&#xF5;es MicroWin a Injetar">
                             <StackPanel>
                                 <CheckBox Name="chkIsoBypassHw" Content="Bypass de Requisitos Win 11 (Ignora TPM 2.0, Secure Boot, RAM e CPU)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigatória (Permite criar Conta Local offline - BypassNRO)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Automática do BitLocker no primeiro boot" IsChecked="True"/>
-                                <CheckBox Name="chkIsoDebloat" Content="Remover Bloatware AppX na raiz da imagem (Xbox overlays, Clipchamp, Notícias, Jogos)" IsChecked="True"/>
-                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas de termos, diagnóstico e anúncios no primeiro boot)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoBypassAcc" Content="Bypass de Conta Microsoft Obrigat&#xF3;ria (Permite criar Conta Local offline - BypassNRO)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoDisableBitLocker" Content="Desativar Criptografia Autom&#xE1;tica do BitLocker no primeiro boot" IsChecked="True"/>
+                                <CheckBox Name="chkIsoDebloat" Content="Remover Bloatware AppX na raiz da imagem (Xbox overlays, Clipchamp, Not&#xED;cias, Jogos)" IsChecked="True"/>
+                                <CheckBox Name="chkIsoUnattend" Content="Injetar autounattend.xml (Pula telas de termos, diagn&#xF3;stico e an&#xFA;ncios no primeiro boot)" IsChecked="True"/>
                             </StackPanel>
                         </GroupBox>
 
-                        <Button Name="btnBuildCustomIso" Content="🚀 Gerar Nova ISO MicroWin Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,4,2,2"/>
+                        <Button Name="btnBuildCustomIso" Content="&#x1F680; Gerar Nova ISO MicroWin Otimizada!" Height="44" FontSize="14" FontWeight="Bold" Background="#89B4FA" Foreground="#11111B" Margin="2,4,2,2"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
             <!-- ABA 5: SOFTWARES (WINGET) -->
-            <TabItem Header="📦 Softwares">
+            <TabItem Header="&#x1F4E6; Softwares">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
                         <Grid Margin="0,0,0,6">
@@ -1742,7 +2267,7 @@ Add-Type -AssemblyName System.Windows.Forms
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Instale ou atualize silenciosamente os softwares essenciais via Winget:" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
-                            <Button Name="btnUpgradeAllSoftware" Grid.Column="1" Content="🔄 Atualizar Todos os Apps (winget upgrade --all)" Padding="10,5"/>
+                            <Button Name="btnUpgradeAllSoftware" Grid.Column="1" Content="&#x1F504; Atualizar Todos os Apps (winget upgrade --all)" Padding="10,5"/>
                         </Grid>
 
                         <Grid>
@@ -1760,7 +2285,7 @@ Add-Type -AssemblyName System.Windows.Forms
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Grid.Column="1" Header="Utilitários Essenciais">
+                            <GroupBox Grid.Column="1" Header="Utilit&#xE1;rios Essenciais">
                                 <StackPanel>
                                     <CheckBox Name="chkSoftware7zip" Content="7-Zip" Tag="7zip.7zip" IsChecked="True"/>
                                     <CheckBox Name="chkSoftwareNotepad" Content="Notepad++" Tag="Notepad++.Notepad++"/>
@@ -1769,7 +2294,7 @@ Add-Type -AssemblyName System.Windows.Forms
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Grid.Column="2" Header="Mídia &amp; Dev/Jogos">
+                            <GroupBox Grid.Column="2" Header="M&#xED;dia &amp; Dev/Jogos">
                                 <StackPanel>
                                     <CheckBox Name="chkSoftwareVlc" Content="VLC Media Player" Tag="VideoLAN.VLC"/>
                                     <CheckBox Name="chkSoftwareVsCode" Content="Visual Studio Code" Tag="Microsoft.VisualStudioCode"/>
@@ -1785,15 +2310,15 @@ Add-Type -AssemblyName System.Windows.Forms
             </TabItem>
 
             <!-- ABA 6: REPAROS DO SISTEMA -->
-            <TabItem Header="🛠️ Reparo do SO">
+            <TabItem Header="&#x1F6E0;&#xFE0F; Reparo do SO">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
                         <GroupBox Header="Integridade de Arquivos e Componentes">
                             <WrapPanel>
-                                <Button Name="btnSfcScan" Content="Verificação de Integridade (SFC /scannow)" Width="270" Height="36"/>
+                                <Button Name="btnSfcScan" Content="Verifica&#xE7;&#xE3;o de Integridade (SFC /scannow)" Width="270" Height="36"/>
                                 <Button Name="btnDismRepair" Content="Reparar Imagem do Windows (DISM)" Width="260" Height="36"/>
                                 <Button Name="btnDismCleanup" Content="Limpar Component Store (WinSxS)" Width="250" Height="36"/>
-                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impressão" Width="230" Height="36"/>
+                                <Button Name="btnRestartSpooler" Content="Destravar Spooler de Impress&#xE3;o" Width="230" Height="36"/>
                                 <Button Name="btnScheduleChkdsk" Content="Agendar CHKDSK no Disco C:" Width="230" Height="36"/>
                             </WrapPanel>
                         </GroupBox>
@@ -1802,13 +2327,13 @@ Add-Type -AssemblyName System.Windows.Forms
             </TabItem>
 
             <!-- ABA 7: LICENCIAMENTO -->
-            <TabItem Header="🔑 Licenciamento">
+            <TabItem Header="&#x1F511; Licenciamento">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="Licença do Windows">
+                        <GroupBox Header="Licen&#xE7;a do Windows">
                             <StackPanel>
                                 <WrapPanel Margin="0,0,0,6">
-                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licença" Width="210" Height="34"/>
+                                    <Button Name="btnCheckWinLicense" Content="Verificar Status da Licen&#xE7;a" Width="210" Height="34"/>
                                 </WrapPanel>
                                 <Grid Margin="0,2">
                                     <Grid.ColumnDefinitions>
@@ -1823,7 +2348,7 @@ Add-Type -AssemblyName System.Windows.Forms
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Header="Licença do Microsoft Office">
+                        <GroupBox Header="Licen&#xE7;a do Microsoft Office">
                             <StackPanel>
                                 <WrapPanel Margin="0,0,0,6">
                                     <Button Name="btnCheckOfficeLicense" Content="Verificar Status do Office" Width="210" Height="34"/>
@@ -1871,7 +2396,7 @@ Add-Type -AssemblyName System.Windows.Forms
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="📜 Console de Execução &amp; Logs em Tempo Real" FontSize="11" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="&#x1F4DC; Console de Execu&#xE7;&#xE3;o &amp; Logs em Tempo Real" FontSize="11" FontWeight="SemiBold" Foreground="#89B4FA" VerticalAlignment="Center"/>
                     <Button Name="btnClearLogs" Grid.Column="1" Content="Limpar Log" Padding="6,3" FontSize="11" Margin="0"/>
                 </Grid>
 
@@ -2034,11 +2559,52 @@ $window.FindName("btnApplySelectedTweaks").Add_Click({
     }
 })
 
-# --- ABA 2: REDE ---
-$window.FindName("btnTestNetwork").Add_Click({ Start-AsyncAction { Test-NetworkQuality } })
-$window.FindName("btnFlushDnsTab").Add_Click({ Start-AsyncAction { Invoke-FlushDns } })
-$window.FindName("btnRenewDhcpTab").Add_Click({ Start-AsyncAction { Invoke-RenewDhcp } })
+# --- ABA 2: REDE & DIAGNOSTICO COMPLETO ---
+$window.FindName("btnNetQuickDiag").Add_Click({ Start-AsyncAction { Invoke-QuickIntegratedNetworkDiag } })
+$window.FindName("btnNetDetailed").Add_Click({ Start-AsyncAction { Invoke-DetailedInternetTest } })
+$window.FindName("btnNetSpeedtest").Add_Click({ Start-AsyncAction { Invoke-DownloadSpeedTest } })
+$window.FindName("btnNetWifi").Add_Click({ Start-AsyncAction { Invoke-WifiDiagnostics -GenerateHtmlReport $false } })
+$window.FindName("btnNetWifiReport").Add_Click({ Start-AsyncAction { Invoke-WifiDiagnostics -GenerateHtmlReport $true } })
+
+$window.FindName("btnNetTestPort").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    $portVal = 443
+    if (-not [int]::TryParse($window.FindName("txtNetPort").Text, [ref]$portVal)) {
+        Write-ToolLog "Informe um número de porta TCP válido (ex: 80, 443, 3389)." "WARN"
+        return
+    }
+    if (-not $target) { $target = "google.com" }
+    Start-AsyncAction -Vars @{ target = $target; portVal = $portVal } -Action {
+        Test-SpecificTcpPort -TargetHost $target -Port $portVal
+    }
+})
+
+$window.FindName("btnNetPathping").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-AsyncAction -Vars @{ target = $target } -Action { Invoke-PathpingAnalysis -TargetHost $target }
+})
+
+$window.FindName("btnNetTracert").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-AsyncAction -Vars @{ target = $target } -Action { Invoke-TracertAnalysis -TargetHost $target }
+})
+
+$window.FindName("btnNetPingCont").Add_Click({
+    $target = $window.FindName("txtNetTarget").Text
+    Start-ContinuousPingWindow -TargetHost $target
+})
+
+$window.FindName("btnNetstatEst").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "Established" } })
+$window.FindName("btnNetstatList").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "Listening" } })
+$window.FindName("btnNetstatAll").Add_Click({ Start-AsyncAction { Get-ActiveConnectionsNetstat -Mode "All" } })
+$window.FindName("btnNetSubnetScan").Add_Click({ Start-AsyncAction { Invoke-LocalSubnetScan -SaveAndOpenReport $true } })
+$window.FindName("btnNetIpConfig").Add_Click({ Start-AsyncAction { Get-IpConfigAllDetails } })
+
+$window.FindName("btnNetSimpleRepair").Add_Click({ Start-AsyncAction { Invoke-SimpleNetworkRepair } })
+$window.FindName("btnNetResetDeep").Add_Click({ Start-AsyncAction { Invoke-ResetNetworkStack } })
+$window.FindName("btnNetForensicReport").Add_Click({ Start-AsyncAction { Export-ForensicNetworkReport } })
 $window.FindName("btnRestartAdapters").Add_Click({ Start-AsyncAction { Restart-NetworkAdapters } })
+$window.FindName("btnOptimizeTcpTab").Add_Click({ Start-AsyncAction { Optimize-TcpLatencyAndThroughput } })
 
 $window.FindName("btnDnsCloudflare").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Cloudflare" } })
 $window.FindName("btnDnsGoogle").Add_Click({ Start-AsyncAction { Set-QuickDnsProvider -Provider "Google" } })

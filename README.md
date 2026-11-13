@@ -68,9 +68,10 @@ Assim como na aba *Install* do WinUtil:
 
 ---
 
-### 🌐 5. Rede, Conectividade & Diagnóstico
-* Teste de latência média e perda de pacotes em tempo real.
-* Troca instantânea de DNS: **Cloudflare (1.1.1.1)**, **Google (8.8.8.8)**, **Quad9 (9.9.9.9)**, **AdGuard DNS (Anti-Anúncios)** e **DHCP**.
+### 🌐 5. Rede, Conectividade & Diagnóstico (14 Ferramentas Integradas)
+* **Diagnósticos & Testes**: Diagnóstico Rápido Integrado (`ping`, gateway, DNS, WAN), Teste Detalhado de Internet, Teste de Velocidade de Download (CDN Cloudflare 5MB), Diagnóstico Wi-Fi (`netsh wlan`) e Relatório HTML Completo (`wlanreport`).
+* **Monitoramento & Análise**: Teste de Porta TCP específica, Análise de Rota (`pathping` / `tracert`), Ping Contínuo em janela separada (`ping -t`), Monitor de Conexões Ativas (`netstat` Established / Listening / All) e Varredura de IPs na Rede Local (`/24` paralela + blocos de IPs livres + `arp -a`) com relatório no Desktop.
+* **Reparo, TCP/IP & DNS**: `ipconfig /all`, Reparo Simples (Flush DNS, Release/Renew DHCP, `nbtstat -R`), Reset Profundo (Winsock, IPv4/IPv6, Proxy, ARP e Firewall), Otimização TCP/IP Gaming (RSS, Chimney/AutoTuning), troca instantânea de DNS (**Cloudflare**, **Google**, **Quad9**, **AdGuard**, **DHCP**) e **Relatório Forense Completo** salvo na Área de Trabalho.
 
 ---
 
