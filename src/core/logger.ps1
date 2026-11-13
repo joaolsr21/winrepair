@@ -1,12 +1,12 @@
-# ==============================================================================
-# Módulo: Sistema de Logging
+﻿# ==============================================================================
+# Módulo: Sistema de Logging (Thread-Safe entre Runspaces e UI WPF)
 # ==============================================================================
 
 function Write-ToolLog {
     param (
         [Parameter(Mandatory=$true)]
         [string]$Message,
-        
+
         [ValidateSet("INFO", "SUCCESS", "WARN", "ERROR")]
         [string]$Level = "INFO"
     )
@@ -23,11 +23,8 @@ function Write-ToolLog {
 
     Write-Host $logLine -ForegroundColor $color
 
-    # Se a GUI estiver ativa com elemento txtLog, atualiza a interface
-    if ($global:txtLogControl -and $global:uiDispatcher) {
-        $global:uiDispatcher.Invoke([action]{
-            $global:txtLogControl.AppendText("$logLine`r`n")
-            $global:txtLogControl.ScrollToEnd()
-        })
+    $sync = if ($WinRepairSync) { $WinRepairSync } else { $global:WinRepairSync }
+    if ($sync -and $sync.LogQueue) {
+        $sync.LogQueue.Enqueue($logLine)
     }
 }

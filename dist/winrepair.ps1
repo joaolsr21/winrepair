@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # WinRepair & Tweaks Pro (Standalone All-in-One)
 # Inspirado no utilitário de Chris Titus Tech (WinUtil)
 # Execução direta via: irm <URL> | iex
@@ -50,14 +50,14 @@ irm https://raw.githubusercontent.com/joaolsr21/winrepair/main/dist/winrepair.ps
 
 
 # ==============================================================================
-# Módulo: Sistema de Logging
+# Módulo: Sistema de Logging (Thread-Safe entre Runspaces e UI WPF)
 # ==============================================================================
 
 function Write-ToolLog {
     param (
         [Parameter(Mandatory=$true)]
         [string]$Message,
-        
+
         [ValidateSet("INFO", "SUCCESS", "WARN", "ERROR")]
         [string]$Level = "INFO"
     )
@@ -74,12 +74,9 @@ function Write-ToolLog {
 
     Write-Host $logLine -ForegroundColor $color
 
-    # Se a GUI estiver ativa com elemento txtLog, atualiza a interface
-    if ($global:txtLogControl -and $global:uiDispatcher) {
-        $global:uiDispatcher.Invoke([action]{
-            $global:txtLogControl.AppendText("$logLine`r`n")
-            $global:txtLogControl.ScrollToEnd()
-        })
+    $sync = if ($WinRepairSync) { $WinRepairSync } else { $global:WinRepairSync }
+    if ($sync -and $sync.LogQueue) {
+        $sync.LogQueue.Enqueue($logLine)
     }
 }
 
@@ -1899,7 +1896,46 @@ $reader = New-Object System.Xml.XmlNodeReader $xaml
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
 $global:txtLogControl = $window.FindName("txtLog")
-$global:uiDispatcher = [System.Windows.Threading.Dispatcher]::CurrentDispatcher
+$global:WinRepairSync = [hashtable]::Synchronized(@{
+    LogQueue   = [System.Collections.Concurrent.ConcurrentQueue[string]]::new()
+    ActiveJobs = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]::new())
+})
+
+# Preparar InitialSessionState para tarefas assíncronas em Runspaces
+$global:BaseInitialSessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+$global:BaseInitialSessionState.Variables.Add((New-Object System.Management.Automation.Runspaces.SessionStateVariableEntry("WinRepairSync", $global:WinRepairSync, $null)))
+foreach ($fn in (Get-ChildItem Function:\ | Where-Object { -not $_.ModuleName -and $_.Name.Length -gt 2 -and $_.Name -notmatch ':' })) {
+    try {
+        $global:BaseInitialSessionState.Commands.Add((New-Object System.Management.Automation.Runspaces.SessionStateFunctionEntry($fn.Name, $fn.Definition)))
+    } catch {}
+}
+
+# Timer da UI para drenar logs e limpar Runspaces finalizados
+$uiTimer = New-Object System.Windows.Threading.DispatcherTimer
+$uiTimer.Interval = [TimeSpan]::FromMilliseconds(150)
+$uiTimer.Add_Tick({
+    $line = $null
+    $updated = $false
+    while ($global:WinRepairSync.LogQueue.TryDequeue([ref]$line)) {
+        $global:txtLogControl.AppendText("$line`r`n")
+        $updated = $true
+    }
+    if ($updated) {
+        $global:txtLogControl.ScrollToEnd()
+    }
+
+    for ($i = $global:WinRepairSync.ActiveJobs.Count - 1; $i -ge 0; $i--) {
+        $job = $global:WinRepairSync.ActiveJobs[$i]
+        if ($job.Handle.IsCompleted) {
+            try { $job.PowerShell.EndInvoke($job.Handle) | Out-Null } catch {}
+            $job.PowerShell.Dispose()
+            $job.Runspace.Close()
+            $job.Runspace.Dispose()
+            $global:WinRepairSync.ActiveJobs.RemoveAt($i)
+        }
+    }
+})
+$uiTimer.Start()
 
 # Informações do Sistema
 try {
@@ -1912,14 +1948,25 @@ try {
 }
 
 function Start-AsyncAction {
-    param([Parameter(Mandatory=$true)][scriptblock]$Action)
-    [System.Threading.ThreadPool]::QueueUserWorkItem({
-        try {
-            & $using:Action
-        } catch {
-            Write-ToolLog "Erro na execução da tarefa: $_" "ERROR"
-        }
-    }) | Out-Null
+    param(
+        [Parameter(Mandatory=$true)][scriptblock]$Action,
+        [hashtable]$Vars = @{}
+    )
+    $rs = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace($global:BaseInitialSessionState)
+    $rs.Open()
+    foreach ($k in $Vars.Keys) {
+        $rs.SessionStateProxy.SetVariable($k, $Vars[$k])
+    }
+    $ps = [PowerShell]::Create()
+    $ps.Runspace = $rs
+    $wrappedCode = "try {`n$($Action.ToString())`n} catch { Write-ToolLog `"Erro na execução da tarefa: `$_`" 'ERROR' }"
+    [void]$ps.AddScript($wrappedCode)
+    $handle = $ps.BeginInvoke()
+    [void]$global:WinRepairSync.ActiveJobs.Add([pscustomobject]@{
+        PowerShell = $ps
+        Runspace   = $rs
+        Handle     = $handle
+    })
 }
 
 # --- PERFIS PRONTOS (1 CLIQUE) ---
@@ -1956,32 +2003,32 @@ $window.FindName("btnApplySelectedTweaks").Add_Click({
         ResetNetwork        = [bool]$window.FindName("chkResetNetwork").IsChecked
     }
 
-    Start-AsyncAction {
+    Start-AsyncAction -Vars @{ tweaks = $tweaks } -Action {
         Write-ToolLog "=== INICIANDO APLICAÇÃO DOS TWEAKS SELECIONADOS ===" "INFO"
 
-        if ($using:tweaks.CleanTemp) { Clear-TempFiles }
-        if ($using:tweaks.DisableTelemetry) { Optimize-WindowsTelemetryAndPrivacy }
-        if ($using:tweaks.DisableBingSearch) { Disable-StartMenuAdsAndBingSearch }
-        if ($using:tweaks.DisableGameDvr) { Disable-GameDvrAndBackgroundRecording }
-        if ($using:tweaks.OptimizeServices) { Optimize-WindowsServicesManual }
-        if ($using:tweaks.UltimatePower) { Enable-UltimatePerformancePowerPlan }
-        if ($using:tweaks.DisableHibernation) { Set-HibernationState -Enable $false }
-        if ($using:tweaks.FastVisuals) { Optimize-SystemResponsivenessAndVisuals }
-        if ($using:tweaks.SsdTrim) { Optimize-SsdTrim }
+        if ($tweaks.CleanTemp) { Clear-TempFiles }
+        if ($tweaks.DisableTelemetry) { Optimize-WindowsTelemetryAndPrivacy }
+        if ($tweaks.DisableBingSearch) { Disable-StartMenuAdsAndBingSearch }
+        if ($tweaks.DisableGameDvr) { Disable-GameDvrAndBackgroundRecording }
+        if ($tweaks.OptimizeServices) { Optimize-WindowsServicesManual }
+        if ($tweaks.UltimatePower) { Enable-UltimatePerformancePowerPlan }
+        if ($tweaks.DisableHibernation) { Set-HibernationState -Enable $false }
+        if ($tweaks.FastVisuals) { Optimize-SystemResponsivenessAndVisuals }
+        if ($tweaks.SsdTrim) { Optimize-SsdTrim }
 
-        if ($using:tweaks.ShowFileExt) { Set-ShowFileExtensions -Enable $true }
-        if ($using:tweaks.ShowHiddenFiles) { Set-ShowHiddenFiles -Enable $true }
-        if ($using:tweaks.ExplorerThisPc) { Set-ExplorerOpenToThisPC }
-        if ($using:tweaks.DarkMode) { Set-SystemDarkMode -Enable $true }
-        if ($using:tweaks.DisableMouseAccel) { Disable-MouseAcceleration }
-        if ($using:tweaks.CleanWin11Taskbar) { Disable-Win11TaskbarJunk }
-        if ($using:tweaks.TakeOwnership) { Add-TakeOwnershipContextMenu }
-        if ($using:tweaks.UninstallOneDrive) { Uninstall-OneDrivePurge }
+        if ($tweaks.ShowFileExt) { Set-ShowFileExtensions -Enable $true }
+        if ($tweaks.ShowHiddenFiles) { Set-ShowHiddenFiles -Enable $true }
+        if ($tweaks.ExplorerThisPc) { Set-ExplorerOpenToThisPC }
+        if ($tweaks.DarkMode) { Set-SystemDarkMode -Enable $true }
+        if ($tweaks.DisableMouseAccel) { Disable-MouseAcceleration }
+        if ($tweaks.CleanWin11Taskbar) { Disable-Win11TaskbarJunk }
+        if ($tweaks.TakeOwnership) { Add-TakeOwnershipContextMenu }
+        if ($tweaks.UninstallOneDrive) { Uninstall-OneDrivePurge }
 
-        if ($using:tweaks.OptimizeTcp) { Optimize-TcpLatencyAndThroughput }
-        if ($using:tweaks.FlushDns) { Invoke-FlushDns }
-        if ($using:tweaks.RenewDhcp) { Invoke-RenewDhcp }
-        if ($using:tweaks.ResetNetwork) { Invoke-ResetNetworkStack }
+        if ($tweaks.OptimizeTcp) { Optimize-TcpLatencyAndThroughput }
+        if ($tweaks.FlushDns) { Invoke-FlushDns }
+        if ($tweaks.RenewDhcp) { Invoke-RenewDhcp }
+        if ($tweaks.ResetNetwork) { Invoke-ResetNetworkStack }
 
         Write-ToolLog "=== TODOS OS TWEAKS SELECIONADOS FORAM APLICADOS COM SUCESSO! ===" "SUCCESS"
     }
@@ -2032,7 +2079,7 @@ $window.FindName("btnInspectIso").Add_Click({
         Write-ToolLog "Por favor, selecione primeiro um arquivo ISO." "WARN"
         return
     }
-    Start-AsyncAction { Inspect-IsoEditions -IsoPath $using:isoPath }
+    Start-AsyncAction -Vars @{ isoPath = $isoPath } -Action { Inspect-IsoEditions -IsoPath $isoPath }
 })
 
 $window.FindName("btnBuildCustomIso").Add_Click({
@@ -2052,17 +2099,27 @@ $window.FindName("btnBuildCustomIso").Add_Click({
         return
     }
 
-    Start-AsyncAction {
-        Build-CustomOptimizedIsoPipeline 
-            -SourceIsoPath $using:isoPath 
-            -OutputIsoDir $using:outputDir 
-            -OutputIsoName $using:outputName 
-            -EditionIndex $using:idx 
-            -BypassHardwareChecks $using:bpHw 
-            -BypassMicrosoftAccount $using:bpAcc 
-            -DisableBitLocker $using:disBit 
-            -RemoveBloatware $using:debloat 
-            -InjectUnattendXml $using:unattend
+    Start-AsyncAction -Vars @{
+        isoPath    = $isoPath
+        outputDir  = $outputDir
+        outputName = $outputName
+        idx        = $idx
+        bpHw       = $bpHw
+        bpAcc      = $bpAcc
+        disBit     = $disBit
+        debloat    = $debloat
+        unattend   = $unattend
+    } -Action {
+        Build-CustomOptimizedIsoPipeline `
+            -SourceIsoPath $isoPath `
+            -OutputIsoDir $outputDir `
+            -OutputIsoName $outputName `
+            -EditionIndex $idx `
+            -BypassHardwareChecks $bpHw `
+            -BypassMicrosoftAccount $bpAcc `
+            -DisableBitLocker $disBit `
+            -RemoveBloatware $debloat `
+            -InjectUnattendXml $unattend
     }
 })
 
@@ -2094,8 +2151,8 @@ $window.FindName("btnInstallSelectedSoftware").Add_Click({
         return
     }
 
-    Start-AsyncAction {
-        Install-SelectedSoftwareList -PackageIds $using:toInstall
+    Start-AsyncAction -Vars @{ toInstall = $toInstall } -Action {
+        Install-SelectedSoftwareList -PackageIds $toInstall
     }
 })
 
@@ -2119,20 +2176,20 @@ $window.FindName("btnCheckWinLicense").Add_Click({ Start-AsyncAction { Get-Windo
 $window.FindName("btnApplyWinKey").Add_Click({
     $key = $window.FindName("txtWinKey").Text
     if (-not $key) { Write-ToolLog "Informe a chave do Windows." "WARN"; return }
-    Start-AsyncAction { Install-WindowsProductKey -ProductKey $using:key }
+    Start-AsyncAction -Vars @{ key = $key } -Action { Install-WindowsProductKey -ProductKey $key }
 })
 
 $window.FindName("btnCheckOfficeLicense").Add_Click({ Start-AsyncAction { Get-OfficeActivationStatus } })
 $window.FindName("btnApplyOfficeKey").Add_Click({
     $key = $window.FindName("txtOfficeKey").Text
     if (-not $key) { Write-ToolLog "Informe a chave do Office." "WARN"; return }
-    Start-AsyncAction { Install-OfficeProductKey -ProductKey $using:key }
+    Start-AsyncAction -Vars @{ key = $key } -Action { Install-OfficeProductKey -ProductKey $key }
 })
 
 $window.FindName("btnSetKms").Add_Click({
     $kmsHost = $window.FindName("txtKmsHost").Text
     if (-not $kmsHost) { Write-ToolLog "Informe o host KMS." "WARN"; return }
-    Start-AsyncAction { Set-EnterpriseKmsServer -KmsHost $using:kmsHost }
+    Start-AsyncAction -Vars @{ kmsHost = $kmsHost } -Action { Set-EnterpriseKmsServer -KmsHost $kmsHost }
 })
 
 # --- LOGS ---
@@ -2141,4 +2198,5 @@ $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
 Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
 
+$window.Add_Closed({ $uiTimer.Stop() })
 $window.ShowDialog() | Out-Null
