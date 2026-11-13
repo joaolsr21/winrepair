@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Módulo: Recursos Opcionais do Windows (Estilo WinUtil Config)
+# Módulo: Recursos Opcionais do Windows
 # ==============================================================================
 
 function Get-FeatureStatus {

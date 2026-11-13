@@ -6,7 +6,7 @@ param(
     [string]$OutputFile = "winrepair.ps1"
 )
 
-Write-Host "[*] Iniciando compilação do WinRepair Pro (Estilo Chris Titus)..." -ForegroundColor Cyan
+Write-Host "[*] Iniciando compilação do WinRepair Pro..." -ForegroundColor Cyan
 
 if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
@@ -17,7 +17,7 @@ $destination = Join-Path $OutputDir $OutputFile
 $banner = @"
 # ==============================================================================
 # WinRepair & Tweaks Pro (Standalone All-in-One)
-# Inspirado no utilitário de Chris Titus Tech (WinUtil)
+# Utilitário Completo de Otimização, Diagnóstico de Rede, ISO e Reparos
 # Execução direta via: irm <URL> | iex
 # ==============================================================================
 
@@ -449,7 +449,7 @@ function Start-AsyncAction {
 `$window.FindName("btnClearLogs").Add_Click({ `$global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
-Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
+Write-ToolLog "Escolha um Perfil de Otimização ou selecione as ferramentas nas abas acima." "INFO"
 
 `$window.Add_Closed({ `$uiTimer.Stop() })
 `$window.ShowDialog() | Out-Null

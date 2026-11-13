@@ -1,6 +1,6 @@
 # ==============================================================================
 # WinRepair & Tweaks Pro (Standalone All-in-One)
-# Inspirado no utilitário de Chris Titus Tech (WinUtil)
+# Utilitário Completo de Otimização, Diagnóstico de Rede, ISO e Reparos
 # Execução direta via: irm <URL> | iex
 # ==============================================================================
 
@@ -826,7 +826,7 @@ function Optimize-WindowsTelemetryAndPrivacy {
 }
 
 function Optimize-WindowsServicesManual {
-    Write-ToolLog "Configurando serviços secundários pesados para Manual ou Desativado (Estilo WinUtil)..." "INFO"
+    Write-ToolLog "Configurando serviços secundários pesados para Manual ou Desativado..." "INFO"
     
     $servicesToDisable = @(
         "DiagTrack",
@@ -994,7 +994,7 @@ function Invoke-SystemDebloatAppx {
 }
 
 # ==============================================================================
-# PERFIS PRÉ-CONFIGURADOS COM 1 CLIQUE (ESTILO CHRIS TITUS WINUTIL)
+# PERFIS PRÉ-CONFIGURADOS COM 1 CLIQUE
 # ==============================================================================
 
 function Apply-DesktopRecommendedProfile {
@@ -1050,7 +1050,7 @@ function Apply-GamerUltimateProfile {
 
 
 # ==============================================================================
-# Módulo: Ajustes de Usabilidade e Interface (Estilo Chris Titus WinUtil)
+# Módulo: Ajustes de Usabilidade e Interface
 # ==============================================================================
 
 function Set-RestorePoint {
@@ -1221,7 +1221,7 @@ function Uninstall-OneDrivePurge {
 
 
 # ==============================================================================
-# Módulo: Recursos Opcionais do Windows (Estilo WinUtil Config)
+# Módulo: Recursos Opcionais do Windows
 # ==============================================================================
 
 function Get-FeatureStatus {
@@ -1277,7 +1277,7 @@ function Enable-NetFramework35 {
 
 
 # ==============================================================================
-# Módulo: Gerenciamento do Windows Update (Estilo Chris Titus Updates)
+# Módulo: Gerenciamento do Windows Update
 # ==============================================================================
 
 function Set-WindowsUpdateRecommended {
@@ -2018,7 +2018,7 @@ Add-Type -AssemblyName System.Windows.Forms
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="&#x26A1; WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimiza&#xE7;&#xF5;es, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="Su&#xED;te Completa: Otimiza&#xE7;&#xF5;es, Diagn&#xF3;stico de Rede, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Name="txtSystemInfo" Text="Identificando m&#xE1;quina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
@@ -2029,7 +2029,7 @@ Add-Type -AssemblyName System.Windows.Forms
         <!-- Abas Principais -->
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             
-            <!-- ABA 1: TWEAKS & PERFIS (ESTILO WINUTIL TWEAKS) -->
+            <!-- ABA 1: TWEAKS & PERFIS -->
             <TabItem Header="&#x26A1; Tweaks &amp; Otimiza&#xE7;&#xE3;o">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
@@ -2171,11 +2171,11 @@ Add-Type -AssemblyName System.Windows.Forms
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 3: RECURSOS & UPDATES (ESTILO WINUTIL CONFIG & UPDATES) -->
+            <!-- ABA 3: RECURSOS & UPDATES -->
             <TabItem Header="&#x2699;&#xFE0F; Recursos &amp; Updates">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="Gerenciamento do Windows Update (Estilo Chris Titus)">
+                        <GroupBox Header="Gerenciamento do Windows Update">
                             <StackPanel>
                                 <TextBlock Text="Controle como o Windows Update lida com atualiza&#xE7;&#xF5;es para evitar travamentos e reinicializa&#xE7;&#xF5;es for&#xE7;adas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
                                 <WrapPanel>
@@ -2762,7 +2762,7 @@ $window.FindName("btnSetKms").Add_Click({
 $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
-Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
+Write-ToolLog "Escolha um Perfil de Otimização ou selecione as ferramentas nas abas acima." "INFO"
 
 $window.Add_Closed({ $uiTimer.Stop() })
 $window.ShowDialog() | Out-Null

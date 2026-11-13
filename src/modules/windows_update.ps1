@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Módulo: Gerenciamento do Windows Update (Estilo Chris Titus Updates)
+# Módulo: Gerenciamento do Windows Update
 # ==============================================================================
 
 function Set-WindowsUpdateRecommended {

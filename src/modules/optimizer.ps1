@@ -110,7 +110,7 @@ function Optimize-WindowsTelemetryAndPrivacy {
 }
 
 function Optimize-WindowsServicesManual {
-    Write-ToolLog "Configurando serviços secundários pesados para Manual ou Desativado (Estilo WinUtil)..." "INFO"
+    Write-ToolLog "Configurando serviços secundários pesados para Manual ou Desativado..." "INFO"
     
     $servicesToDisable = @(
         "DiagTrack",
@@ -278,7 +278,7 @@ function Invoke-SystemDebloatAppx {
 }
 
 # ==============================================================================
-# PERFIS PRÉ-CONFIGURADOS COM 1 CLIQUE (ESTILO CHRIS TITUS WINUTIL)
+# PERFIS PRÉ-CONFIGURADOS COM 1 CLIQUE
 # ==============================================================================
 
 function Apply-DesktopRecommendedProfile {

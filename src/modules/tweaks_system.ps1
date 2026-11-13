@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Módulo: Ajustes de Usabilidade e Interface (Estilo Chris Titus WinUtil)
+# Módulo: Ajustes de Usabilidade e Interface
 # ==============================================================================
 
 function Set-RestorePoint {

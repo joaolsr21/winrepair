@@ -112,7 +112,7 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="⚡ WinRepair &amp; Tweaks Pro" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                    <TextBlock Text="Inspirado no Chris Titus WinUtil: Otimizações, Tweaks, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                    <TextBlock Text="Suíte Completa: Otimizações, Diagnóstico de Rede, Recursos, ISO e Reparos" FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock Name="txtSystemInfo" Text="Identificando máquina..." FontSize="12" Foreground="#94E2D5" HorizontalAlignment="Right"/>
@@ -123,7 +123,7 @@
         <!-- Abas Principais -->
         <TabControl Grid.Row="1" Background="#1E1E2E" BorderBrush="#313244" BorderThickness="1">
             
-            <!-- ABA 1: TWEAKS & PERFIS (ESTILO WINUTIL TWEAKS) -->
+            <!-- ABA 1: TWEAKS & PERFIS -->
             <TabItem Header="⚡ Tweaks &amp; Otimização">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
@@ -265,11 +265,11 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- ABA 3: RECURSOS & UPDATES (ESTILO WINUTIL CONFIG & UPDATES) -->
+            <!-- ABA 3: RECURSOS & UPDATES -->
             <TabItem Header="⚙️ Recursos &amp; Updates">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="8">
-                        <GroupBox Header="Gerenciamento do Windows Update (Estilo Chris Titus)">
+                        <GroupBox Header="Gerenciamento do Windows Update">
                             <StackPanel>
                                 <TextBlock Text="Controle como o Windows Update lida com atualizações para evitar travamentos e reinicializações forçadas:" FontSize="11" Foreground="#A6ADC8" Margin="4,0,0,6"/>
                                 <WrapPanel>

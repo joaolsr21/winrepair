@@ -1,5 +1,5 @@
 ﻿# ==============================================================================
-# Script Principal: WinRepair & Tweaks Pro (Estilo Chris Titus WinUtil)
+# Script Principal: WinRepair & Tweaks Pro
 # ==============================================================================
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -401,7 +401,7 @@ $window.FindName("btnSetKms").Add_Click({
 $window.FindName("btnClearLogs").Add_Click({ $global:txtLogControl.Text = "" })
 
 Write-ToolLog "WinRepair & Tweaks Pro carregado com sucesso!" "SUCCESS"
-Write-ToolLog "Inspirado no Chris Titus WinUtil. Escolha um Perfil ou personalize os Tweaks acima." "INFO"
+Write-ToolLog "Escolha um Perfil de Otimização ou selecione as ferramentas nas abas acima." "INFO"
 
 $window.Add_Closed({ $uiTimer.Stop() })
 $window.ShowDialog() | Out-Null
